@@ -17,5 +17,5 @@ $(CLIENT): $(COBJS)
 	$(CC) -o $(CLIENT) $(COBJS)
 
 .c.o: 
-	$(CC) -c $*.c
+	$(CC) -c $*.c -Wall
 

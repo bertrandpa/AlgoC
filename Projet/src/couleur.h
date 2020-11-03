@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 // Compte de bits (24 bits, 32 bits..)
-typedef enum COMPTEBIT {BITS24, BITS32} COMPTEBIT; 
+typedef enum COMPTEBIT { BITS24, BITS32 } COMPTEBIT;
 
 // Structure de données d'une couleur de 32 bits
 #pragma pack(push, 1)
@@ -34,7 +34,7 @@ typedef struct {
 
 // Structure de données d'un couleurs de 24/32 bits
 typedef struct {
-  COMPTEBIT compte_bit; 
+  COMPTEBIT compte_bit;
   union {
     couleur24 *c24;
     couleur32 *c32;
@@ -46,19 +46,17 @@ typedef struct {
 typedef struct {
   couleur32 c;
   int compte;
-}
-couleur32_compteur;
+} couleur32_compteur;
 
 // Structure de données de compteur de couleurs de 24 bits
 typedef struct {
   couleur24 c;
   int compte;
-}
-couleur24_compteur;
+} couleur24_compteur;
 
 // Structure de données de compteur de couleurs de 24/32 bits
 typedef struct {
-  COMPTEBIT compte_bit; 
+  COMPTEBIT compte_bit;
   union {
     couleur24_compteur *cc24;
     couleur32_compteur *cc32;
@@ -66,16 +64,16 @@ typedef struct {
   int size;
 } couleur_compteur;
 
-//compter les couleurs distincts 
-couleur_compteur* compte_couleur(couleur *, int);
+// compter les couleurs distincts
+couleur_compteur *compte_couleur(couleur *, int);
 
-//afficher les couleurs
+// afficher les couleurs
 void print_couleur(couleur *, int);
 
-//afficher le compte de couleurs distincts
+// afficher le compte de couleurs distincts
 void print_couleur_compteur(couleur_compteur *);
 
-//trier le compte de couleurs distincts
+// trier le compte de couleurs distincts
 void trier_couleur_compteur(couleur_compteur *);
 
 #endif

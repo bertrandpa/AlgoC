@@ -5,7 +5,6 @@
  *
  */
 
-
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
@@ -16,5 +15,8 @@
  * en retour
  */
 int recois_envoie_message(int socketfd);
+
+int renvoie_nom(int socketfd);
+int recois_numeros_calcule(int socketfd);
 
 #endif
