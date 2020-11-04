@@ -1,4 +1,9 @@
 {
     "C_Cpp.clang_format_fallbackStyle": "LLVM",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "files.associations": {
+        "system_error": "c",
+        "numeric": "c"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }

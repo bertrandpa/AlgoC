@@ -19,6 +19,56 @@
 
 volatile __sig_atomic_t is_running;
 
+/* accepter la nouvelle connection d'un client et lire les données
+ * envoyées par le client. En suite, le serveur envoie un message
+ * en retour
+ */
+int recois_envoie_message(int client_socket_fd) {
+  struct sockaddr_in client_addr;
+  char data[1024];
+
+  // la réinitialisation de l'ensemble des données
+  memset(data, 0, sizeof(data));
+
+  // lecture de données envoyées par un client
+  int data_size = read(client_socket_fd, (void *)data, sizeof(data));
+
+  if (data_size < 0) {
+    perror("erreur lecture");
+    return (EXIT_FAILURE);
+  } else if (data_size == 0) {
+    perror("erreur lecture vide");
+    return (EXIT_FAILURE);
+  }
+
+  printf("Message recu: %s\n", data);
+
+  /*
+   * extraire le code des données envoyées par le client.
+   * Les données envoyées par le client peuvent commencer par le mot "message :"
+   * ou un autre mot.
+   */
+
+  char code[10];
+  sscanf(data, "%s", code);
+
+  // Si le message commence par le mot: 'message:'
+  if (strcmp(code, "message:") == 0) {
+    renvoie_message(client_socket_fd, data);
+  } else if (strcmp(code, "nom:") == 0) {
+    renvoie_nom(client_socket_fd, data);
+  } else if (strcmp(code, "calcule:") == 0) {
+    recois_numeros_calcule(client_socket_fd, data);
+  } else {
+    plot(data);
+  }
+
+  // fermer le socket
+  close(client_socket_fd);
+  printf("[-]Client %d déconnecté\n", client_socket_fd);
+  return 0;
+}
+
 void plot(char *data) {
 
   // Extraire le compteur et les couleurs RGB
@@ -56,7 +106,27 @@ void plot(char *data) {
 /* renvoyer un message (*data) au client (client_socket_fd)
  */
 int renvoie_message(int client_socket_fd, char *data) {
+  char msg[1024];
+  memset(msg, 0, sizeof(msg));
+  printf("Votre réponse (max %ld caracteres): ", sizeof(msg));
+  if (fgets(msg, sizeof(msg), stdin) == NULL) {
+    perror("erreur scan utilisateur");
+    return (EXIT_FAILURE);
+  }
+  fflush(stdout);
+  int msg_size = write(client_socket_fd, (void *)msg, strlen(msg));
+  printf("[send] to %d : %s\n", client_socket_fd, msg);
+
+  if (msg_size < 0) {
+    perror("erreur ecriture");
+    return (EXIT_FAILURE);
+  }
+  return 0;
+}
+
+int renvoie_nom(int client_socket_fd, char *data) {
   int data_size = write(client_socket_fd, (void *)data, strlen(data));
+  printf("[send] to %d : %s\n", client_socket_fd, data);
 
   if (data_size < 0) {
     perror("erreur ecriture");
@@ -65,53 +135,15 @@ int renvoie_message(int client_socket_fd, char *data) {
   return 0;
 }
 
-/* accepter la nouvelle connection d'un client et lire les données
- * envoyées par le client. En suite, le serveur envoie un message
- * en retour
- */
-int recois_envoie_message(int client_socket_fd) {
-  struct sockaddr_in client_addr;
-  char data[1024];
-
-  // la réinitialisation de l'ensemble des données
-  memset(data, 0, sizeof(data));
-
-  // lecture de données envoyées par un client
-  int data_size = read(client_socket_fd, (void *)data, sizeof(data));
+int recois_numeros_calcule(int client_socket_fd, char *data) {
+  // TODO analsye data
+  int data_size = write(client_socket_fd, (void *)data, strlen(data));
+  printf("[send] to %d : %s\n", client_socket_fd, data);
 
   if (data_size < 0) {
-    perror("erreur lecture");
+    perror("erreur ecriture");
     return (EXIT_FAILURE);
   }
-
-  printf("Message recu: %s\n", data);
-
-  /*
-   * extraire le code des données envoyées par le client.
-   * Les données envoyées par le client peuvent commencer par le mot "message :"
-   * ou un autre mot.
-   */
-
-  renvoie_message(client_socket_fd, "Client veuillez saisir votre message : ");
-
-  memset(data, 0, sizeof(data));
-  data_size = read(client_socket_fd, (void *)data, sizeof(data));
-  char code[10];
-  sscanf(data, "%s", code);
-
-  // Si le message commence par le mot: 'message:'
-  if (strcmp(code, "message:") == 0) {
-    renvoie_message(client_socket_fd, data);
-  } else if (strcmp(code, "nom:") == 0) {
-    renvoie_message(client_socket_fd, data);
-  } else if (strcmp(code, "calcule:") == 0) {
-    renvoie_message(client_socket_fd, data);
-  } else {
-    plot(data);
-  }
-
-  // fermer le socket
-  close(client_socket_fd);
   return 0;
 }
 
@@ -144,7 +176,7 @@ int main() {
     perror("Unable to open a socket");
     return -1;
   }
-  printf("Socketer!");
+
   int option = 1;
   setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
@@ -162,29 +194,34 @@ int main() {
     return (EXIT_FAILURE);
   }
 
-  printf("Binder!");
-
   // Écouter les messages envoyés par le client
   if (listen(socketfd, 10) < 0) {
     perror("listen");
     return (EXIT_FAILURE);
   }
-
+  // TODO fixme
   is_running = 1;
-  printf("Run : %d", is_running);
   while (is_running == 1) {
-    printf("En attente de client");
+    printf("En attente de client\n");
     int client_socket_fd =
         accept(socketfd, (struct sockaddr *)&client_addr, &client_addr_len);
     if (client_socket_fd < 0) {
       perror("accept");
       return (EXIT_FAILURE);
     }
-    printf("Client %d est connecté", client_socket_fd);
+    printf("[+]Client %d est connecté\n", client_socket_fd);
     //à thread/fork pour multi client
-
-    // Lire et répondre au client
+    /*     pid_t pid;
+        if ((pid = fork()) < 0) {
+          perror("fork");
+          return (EXIT_FAILURE);
+        } else if (pid == 0) {
+          recois_envoie_message(client_socket_fd);
+        } else {
+          continue;
+        } */
     recois_envoie_message(client_socket_fd);
+    // Lire et répondre au client
   }
 
   close(socketfd);

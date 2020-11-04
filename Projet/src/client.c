@@ -20,37 +20,39 @@
  * Fonction d'envoi et de réception de messages
  * Il faut un argument : l'identifiant de la socket
  */
-
 int envoie_recois_message(int socketfd) {
 
   char data[1024];
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
-
   // Demandez à l'utilisateur d'entrer un message
   char message[1012];
   printf("Votre message (max 1000 caracteres): ");
-  fgets(message, 1024, stdin);
+  if (fgets(message, sizeof(message), stdin) == NULL) {
+    perror("erreur scan utilisateur");
+    return (EXIT_FAILURE);
+  }
+  fflush(stdout);
   strcpy(data, "message: ");
   strcat(data, message);
+  data[strlen(data)] = '\0';
 
   int write_status = write(socketfd, data, strlen(data));
   if (write_status < 0) {
     perror("erreur ecriture");
-    exit(EXIT_FAILURE);
+    return (EXIT_FAILURE);
   }
 
-  // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
 
   // lire les données de la socket
   int read_status = read(socketfd, data, sizeof(data));
   if (read_status < 0) {
     perror("erreur lecture");
-    return -1;
+    return (EXIT_FAILURE);
   }
 
-  printf("Message recu: %s\n", data);
+  printf("[recv] %s\n", data);
 
   return 0;
 }
@@ -61,9 +63,9 @@ int envoie_nom_de_client(int socketfd) {
   memset(data, 0, sizeof(data));
 
   // Demandez à l'utilisateur d'entrer un message
-  char message[20];
+  char message[40];
   printf("Votre nom (max 20 caracteres): ");
-  fgets(message, 1024, stdin);
+  fgets(message, sizeof(message) - 1, stdin);
   strcpy(data, "nom: ");
   strcat(data, message);
   data[strlen(data)] = '\0';
@@ -74,17 +76,14 @@ int envoie_nom_de_client(int socketfd) {
     exit(EXIT_FAILURE);
   }
 
-  // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
-
-  // lire les données de la socket
   int read_status = read(socketfd, data, sizeof(data));
   if (read_status < 0) {
     perror("erreur lecture");
-    return -1;
+    return (EXIT_FAILURE);
   }
 
-  printf("Message recu: %s\n", data);
+  printf("[recv] %s\n", data);
 
   return 0;
 }
@@ -97,8 +96,9 @@ int envoie_operateur_numeros(int socketfd) {
   // Demandez à l'utilisateur d'entrer un message
   char message[1000];
   printf("Votre calcul (max 1000 caracteres): ");
-  fgets(message, 1024, stdin);
-  // test dans serveur ?? si operation valide : infix evaluation
+  fgets(message, sizeof(message), stdin);
+  // TODO analsye data
+
   strcpy(data, "calcul: ");
   strcat(data, message);
 
@@ -108,18 +108,14 @@ int envoie_operateur_numeros(int socketfd) {
     exit(EXIT_FAILURE);
   }
 
-  // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
-
-  // lire les données de la socket
   int read_status = read(socketfd, data, sizeof(data));
   if (read_status < 0) {
     perror("erreur lecture");
-    return -1;
+    return (EXIT_FAILURE);
   }
 
-  printf("Message recu: %s\n", data);
-
+  printf("[recv] %s\n", data);
   return 0;
 }
 
@@ -200,7 +196,9 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   // envoie_recois_message(socketfd);
-  envoie_couleurs(socketfd, argv[1]);
+  envoie_nom_de_client(socketfd);
+  // envoie_operateur_numeros(socketfd);
+  // envoie_couleurs(socketfd, argv[1]);
 
   close(socketfd);
 }
