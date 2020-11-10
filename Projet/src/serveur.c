@@ -50,8 +50,9 @@ int recois_envoie_message(int client_socket_fd) {
    */
 
   char code[10];
-  sscanf(data, "%s", code);
 
+  sscanf(data, "%s", code);
+  data[strlen(data) - 1] = '\0';
   // Si le message commence par le mot: 'message:'
   if (strcmp(code, "message:") == 0) {
     renvoie_message(client_socket_fd, data);
@@ -114,7 +115,7 @@ int renvoie_message(int client_socket_fd, char *data) {
     return (EXIT_FAILURE);
   }
   fflush(stdout);
-  int msg_size = write(client_socket_fd, (void *)msg, strlen(msg));
+  int msg_size = write(client_socket_fd, msg, strlen(msg));
   printf("[send] to %d : %s\n", client_socket_fd, msg);
 
   if (msg_size < 0) {
@@ -125,7 +126,7 @@ int renvoie_message(int client_socket_fd, char *data) {
 }
 
 int renvoie_nom(int client_socket_fd, char *data) {
-  int data_size = write(client_socket_fd, (void *)data, strlen(data));
+  int data_size = write(client_socket_fd, data, strlen(data));
   printf("[send] to %d : %s\n", client_socket_fd, data);
 
   if (data_size < 0) {
@@ -137,8 +138,37 @@ int renvoie_nom(int client_socket_fd, char *data) {
 
 int recois_numeros_calcule(int client_socket_fd, char *data) {
   // TODO analsye data
-  int data_size = write(client_socket_fd, (void *)data, strlen(data));
-  printf("[send] to %d : %s\n", client_socket_fd, data);
+  char message[1024];
+  memset(message, 0, sizeof(message));
+  char code[10]; // pass en param ?
+  memset(code, 0, sizeof(code));
+  char operateur[20];
+  memset(operateur, 0, sizeof(operateur));
+  char erreur[50];
+  memset(erreur, 0, sizeof(erreur));
+  int operand1, operand2, result;
+  // todo erreur scan handling + validator
+  sscanf((void *)data, "%s %s %d %d", code, operateur, &operand1, &operand2);
+  if (strcmp(operateur, "+") == 0)
+    result = operand1 + operand2;
+  else if (strcmp(operateur, "-") == 0)
+    result = operand1 - operand2;
+  else if (strcmp(operateur, "*") == 0)
+    result = operand1 * operand2;
+  else if (strcmp(operateur, "/") == 0) {
+    if (operand2 == 0)
+      strcpy(erreur, "erreur : division par zéro");
+    else
+      result = operand1 / operand2;
+  } else
+    strcpy(erreur, "erreur : opération inconnue");
+  if (strlen(erreur) != 0)
+    sprintf(message, "%s %s", code, erreur);
+  else
+    sprintf(message, "%s %s %d", code, result);
+
+  int data_size = write(client_socket_fd, message, strlen(message));
+  printf("[send] to %d : %s\n", client_socket_fd, message);
 
   if (data_size < 0) {
     perror("erreur ecriture");
@@ -211,15 +241,18 @@ int main() {
     }
     printf("[+]Client %d est connecté\n", client_socket_fd);
     //à thread/fork pour multi client
-    /*     pid_t pid;
-        if ((pid = fork()) < 0) {
-          perror("fork");
-          return (EXIT_FAILURE);
-        } else if (pid == 0) {
-          recois_envoie_message(client_socket_fd);
-        } else {
-          continue;
-        } */
+    /* pid_t pid;
+    if ((pid = fork()) < 0) {
+      perror("fork");
+      return (EXIT_FAILURE);
+    } else if (pid == 0) {
+      // child
+      recois_envoie_message(client_socket_fd);
+    } else {
+      // parent
+      // TODO allouer tab taille fixe nb max child et wait avec lock + predicate
+      continue;
+    } */
     recois_envoie_message(client_socket_fd);
     // Lire et répondre au client
   }

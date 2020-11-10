@@ -95,11 +95,13 @@ int envoie_operateur_numeros(int socketfd) {
 
   // Demandez à l'utilisateur d'entrer un message
   char message[1000];
-  printf("Votre calcul (max 1000 caracteres): ");
+  printf("Votre calcul infixe (max 1000 caracteres): ");
   fgets(message, sizeof(message), stdin);
   // TODO analsye data
-
-  strcpy(data, "calcul: ");
+  /* char operator;
+  int operand1, operand2;
+  scanf("%c %d %d", &operator, &operand1, &operand2) */
+  strcpy(data, "calcule: ");
   strcat(data, message);
 
   int write_status = write(socketfd, data, strlen(data));
@@ -196,8 +198,8 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   // envoie_recois_message(socketfd);
-  envoie_nom_de_client(socketfd);
-  // envoie_operateur_numeros(socketfd);
+  // envoie_nom_de_client(socketfd);
+  envoie_operateur_numeros(socketfd);
   // envoie_couleurs(socketfd, argv[1]);
 
   close(socketfd);
