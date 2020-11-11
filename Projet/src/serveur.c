@@ -146,26 +146,32 @@ int recois_numeros_calcule(int client_socket_fd, char *data) {
   memset(operateur, 0, sizeof(operateur));
   char erreur[50];
   memset(erreur, 0, sizeof(erreur));
-  int operand1, operand2, result;
-  // todo erreur scan handling + validator
-  sscanf((void *)data, "%s %s %d %d", code, operateur, &operand1, &operand2);
-  if (strcmp(operateur, "+") == 0)
-    result = operand1 + operand2;
-  else if (strcmp(operateur, "-") == 0)
-    result = operand1 - operand2;
-  else if (strcmp(operateur, "*") == 0)
-    result = operand1 * operand2;
-  else if (strcmp(operateur, "/") == 0) {
-    if (operand2 == 0)
-      strcpy(erreur, "erreur : division par zéro");
-    else
-      result = operand1 / operand2;
+  float operande1, operande2, result;
+  operande1 = operande2 = result = 0.0;
+  // TODO remove float trailing zeros
+  /* sscanf return number of variables filled*/
+  int read_value = sscanf((void *)data, "%s %s %f %f", code, operateur,
+                          &operande1, &operande2);
+  if (read_value > 2) {
+    if (strcmp(operateur, "+") == 0)
+      result = operande1 + operande2;
+    else if (strcmp(operateur, "-") == 0)
+      result = operande1 - operande2;
+    else if (strcmp(operateur, "*") == 0)
+      result = operande1 * operande2;
+    else if (strcmp(operateur, "/") == 0) {
+      if (operande2 == 0)
+        strcpy(erreur, "erreur : division par zéro");
+      else
+        result = operande1 / operande2;
+    } else
+      strcpy(erreur, "erreur : opération inconnue");
   } else
-    strcpy(erreur, "erreur : opération inconnue");
+    strcpy(erreur, "erreur : format données");
   if (strlen(erreur) != 0)
     sprintf(message, "%s %s", code, erreur);
   else
-    sprintf(message, "%s %s %d", code, result);
+    sprintf(message, "%s %f", code, result);
 
   int data_size = write(client_socket_fd, message, strlen(message));
   printf("[send] to %d : %s\n", client_socket_fd, message);

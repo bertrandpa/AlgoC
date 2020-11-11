@@ -27,6 +27,8 @@ int envoie_recois_message(int socketfd) {
   memset(data, 0, sizeof(data));
   // Demandez à l'utilisateur d'entrer un message
   char message[1012];
+  memset(message, 0, sizeof(message));
+
   printf("Votre message (max 1000 caracteres): ");
   if (fgets(message, sizeof(message), stdin) == NULL) {
     perror("erreur scan utilisateur");
@@ -64,6 +66,8 @@ int envoie_nom_de_client(int socketfd) {
 
   // Demandez à l'utilisateur d'entrer un message
   char message[40];
+  memset(message, 0, sizeof(message));
+
   printf("Votre nom (max 20 caracteres): ");
   fgets(message, sizeof(message) - 1, stdin);
   strcpy(data, "nom: ");
@@ -95,6 +99,7 @@ int envoie_operateur_numeros(int socketfd) {
 
   // Demandez à l'utilisateur d'entrer un message
   char message[1000];
+  memset(message, 0, sizeof(message));
   printf("Votre calcul infixe (max 1000 caracteres): ");
   fgets(message, sizeof(message), stdin);
   // TODO analsye data
@@ -127,13 +132,14 @@ void analyse(char *pathname, char *data) {
 
   int count;
   strcpy(data, "couleurs: ");
-  char temp_string[10] = "10,";
+  char temp_string[10] = "10,"; // TODO change size
   if (cc->size < 10) {
     sprintf(temp_string, "%d,", cc->size);
   }
   strcat(data, temp_string);
 
   // choisir 10 couleurs
+  // TODO modulé nb couleurs
   for (count = 1; count < 11 && cc->size - count > 0; count++) {
     if (cc->compte_bit == BITS32) {
       sprintf(temp_string, "#%02x%02x%02x,",
@@ -153,11 +159,18 @@ void analyse(char *pathname, char *data) {
   // enlever le dernier virgule
   data[strlen(data) - 1] = '\0';
 }
-
+// TODO finir
 int envoie_couleurs(int socketfd, char *pathname) {
   char data[1024];
   memset(data, 0, sizeof(data));
-  analyse(pathname, data);
+  char message[1000];
+  memset(message, 0, sizeof(message));
+  uint nbcouleurs;
+  do {
+    printf("Votre nombre de couleurs à envoyer (<30): ");
+    scanf("%u\n", nbcouleurs);
+  } while (nbcouleurs > 30);
+  // analyse(pathname, data); // TODO add nbcouleurs param
 
   int write_status = write(socketfd, data, strlen(data));
   printf("Couleurs envoyées : %s\n", data);
