@@ -67,6 +67,8 @@ int recois_envoie_message(int client_socket_fd) {
     recois_numeros_calcule(client_socket_fd, data, reponse);
   } else if (strcmp(code, "couleurs:") == 0) {
     recois_couleurs(client_socket_fd, data, reponse);
+  } else if (strcmp(code, "balises:") == 0) {
+    recois_balises(client_socket_fd, data, reponse);
   }
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
@@ -91,8 +93,7 @@ int save(char *path, char *data) {
   }
   time_t t = time(NULL);
   char *asct = asctime(localtime(&t));
-  printf("TIME : %s", asct);
-  fprintf(fd, "#save %s \n", asct);
+  fprintf(fd, "#save at %s", asct);
   // TODO voir si formattage nécessaire avant save
   fprintf(fd, "%s\n", data);
   fclose(fd);
@@ -210,6 +211,22 @@ int recois_couleurs(int client_socket_fd, char *data, char *reponse) {
     return (EXIT_FAILURE);
   }
   sprintf(reponse, "couleurs: enregistre");
+  return 0;
+}
+
+int recois_balises(int client_socket_fd, char *data, char *reponse) {
+  int nbbalises = atoi(strrchr(data, ':') + 1);
+  if (nbbalises > 0) {
+    char file_name[30];
+    sprintf(file_name, "files/%d%s", client_socket_fd, "balises");
+    printf("%s\n", file_name);
+    save(file_name, data);
+  } else {
+    perror("Erreur nombre balises");
+    return (EXIT_FAILURE);
+  }
+  sprintf(reponse, "balises: enregistre");
+
   return 0;
 }
 

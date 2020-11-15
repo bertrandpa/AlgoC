@@ -24,5 +24,9 @@ int envoie_message(int socketfd, char *data);
 int envoie_nom_de_client(int socketfd, char *data);
 int envoie_operateur_numeros(int socketfd, char *data);
 int envoie_couleurs(int socketfd, char *data, char *pathname);
+int envoie_balises(int socketfd, char *data);
+int iscouleurs(char *couleur);
+int isbalises(char *balise);
+int read_input(char *data, int (*test)(char *));
 
 #endif

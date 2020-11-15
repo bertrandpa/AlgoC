@@ -5,6 +5,7 @@
  *
  */
 
+#include <ctype.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +16,6 @@
 
 #include "bmp.h"
 #include "client.h"
-
 /*
  * Fonction d'envoi et de réception de messages
  * Il faut un argument : l'identifiant de la socket
@@ -50,12 +50,14 @@ int envoie_recois_message(int socketfd, char *pathname) {
     envoie_operateur_numeros(socketfd, data);
     break;
   case 4:
+    // TODO soit demandé l'input du path
+    // soit si pathname != null call direct la fct
     strcpy(data, "couleurs: ");
     envoie_couleurs(socketfd, data, pathname);
     break;
   case 5:
-    // envoie_balises(socketfd, data) //TODO
-    // break;
+    envoie_balises(socketfd, data);
+    break;
     return (EXIT_SUCCESS);
   default:
     return (EXIT_SUCCESS);
@@ -131,9 +133,11 @@ int envoie_operateur_numeros(int socketfd, char *data) {
   return 0;
 }
 
-void analyse(char *pathname, char *data, int nbcouleurs) {
+int analyse(char *pathname, char *data, int nbcouleurs) {
   // compte de couleurs
   couleur_compteur *cc = analyse_bmp_image(pathname);
+  if (cc == NULL)
+    return (EXIT_FAILURE);
 
   int count;
   char temp_string[10]; // care JSON change
@@ -156,6 +160,7 @@ void analyse(char *pathname, char *data, int nbcouleurs) {
     }
     strcat(data, temp_string);
   }
+  return 0;
 }
 
 int envoie_couleurs(int socketfd, char *data, char *pathname) {
@@ -166,41 +171,75 @@ int envoie_couleurs(int socketfd, char *data, char *pathname) {
     do {
       printf("Votre nombre de couleurs à envoyer (<30): ");
       scanf("%u", &nbcouleurs);
-      printf("%u\n", nbcouleurs);
     } while (nbcouleurs > 30);
-    analyse(pathname, couleurs, nbcouleurs);
+    if (analyse(pathname, couleurs, nbcouleurs))
+      return (EXIT_FAILURE);
   } else {
-    char tmp_couleur[10];
-    do {
-      memset(tmp_couleur, 0, sizeof(tmp_couleur));
-      uint32_t couleur;
-      printf("Votre couleur (format hexa): ");
-      if (fgets(tmp_couleur, sizeof(tmp_couleur), stdin) == NULL) {
-        perror("erreur scan utilisateur");
-        return (EXIT_FAILURE);
-      }
-      // vérifie le format hexa
-      if (sscanf(tmp_couleur, "%x", &couleur) == 1) {
-        // remplace le \n du fgets par '\0'
-        tmp_couleur[strlen(tmp_couleur) - 1] = '\0';
-        // test 6 digit hexa
-        if (strlen(tmp_couleur) == 6) {
-          nbcouleurs++;
-          strcat(couleurs, ",#");
-          strcat(couleurs, tmp_couleur);
-        } else {
-          printf("Erreur format\n");
-        }
-
-      } else {
-        printf("\nFin de la saisie\n");
-        break;
-      }
-    } while (nbcouleurs < 31);
+    nbcouleurs = read_input(couleurs, iscouleurs);
   }
   sprintf(data, "couleurs: %d", nbcouleurs);
   strcat(data, couleurs);
   return 0;
+}
+
+int envoie_balises(int socketfd, char *data) {
+
+  char balises[1000];
+  memset(balises, 0, sizeof(balises));
+  uint nbbalises = read_input(balises, isbalises);
+  sprintf(data, "balises: %d", nbbalises);
+  strcat(data, balises);
+  return 0;
+}
+
+int iscouleurs(char *couleur) {
+  uint32_t hexa_color;
+  if (sscanf(couleur, "%x", &hexa_color) == 1) {
+    // test 6 digit hexa
+    if (strlen(couleur) == 6) {
+      return 0;
+    } else {
+      return 1;
+    }
+  } else {
+    return -1;
+  }
+}
+
+int isbalises(char *balise) {
+  for (int i = 0; i < strlen(balise); i++) {
+    if (!isalnum(balise[i]))
+      return -1;
+    else if (!isalpha(balise[i]))
+      return 1;
+  }
+  return 0;
+}
+
+int read_input(char *data, int (*test)(char *)) {
+  uint count = 0;
+  char tmp_str[30];
+  do {
+    memset(tmp_str, 0, sizeof(tmp_str));
+    printf("Votre input : ");
+    if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
+      perror("erreur scan utilisateur");
+      return (EXIT_FAILURE);
+    }
+    tmp_str[strlen(tmp_str) - 1] = '\0';
+    int format = test(tmp_str);
+    if (format == 0) {
+      strcat(data, ", #");
+      strcat(data, tmp_str);
+      count++;
+    } else if (format == 1) {
+      printf("Erreur format\n");
+    } else {
+      printf("\nFin de la saisie\n");
+      break;
+    }
+  } while (count < 31);
+  return count;
 }
 
 int main(int argc, char **argv) {
@@ -230,7 +269,7 @@ int main(int argc, char **argv) {
     perror("connection serveur");
     exit(EXIT_FAILURE);
   }
-  // TODO arbre choix ?
+
   envoie_recois_message(socketfd, argv[1]);
 
   close(socketfd);
