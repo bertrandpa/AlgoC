@@ -70,12 +70,13 @@ couleur_compteur *analyse_bmp_image(char *nom_de_fichier) {
       return (NULL);
     }
 
-    int ccsize;
+    int ccsize = binfo_header.taille_image / 4;
     couleur c;
     c.compte_bit = BITS32;
     c.c.c32 = c32;
-    cc = compte_couleur(&c, binfo_header.taille_image / 4);
+    cc = compte_couleur(&c, ccsize);
     trier_couleur_compteur(cc);
+
   } else if (binfo_header.compte_bit == 24) {
     // Lecture des couleurs de 3 octets
     couleur24 *c24 = calloc(binfo_header.taille_image / 3, 3);
@@ -85,11 +86,11 @@ couleur_compteur *analyse_bmp_image(char *nom_de_fichier) {
       return (NULL);
     }
 
-    int ccsize;
+    int ccsize = binfo_header.taille_image / 3;
     couleur c;
     c.compte_bit = BITS24;
     c.c.c24 = c24;
-    cc = compte_couleur(&c, binfo_header.taille_image / 3);
+    cc = compte_couleur(&c, ccsize);
     trier_couleur_compteur(cc);
   }
 

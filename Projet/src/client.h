@@ -19,9 +19,10 @@
  * Il faut un argument : l'identifiant de la socket
  */
 
-int envoie_recois_message(int socketfd);
-int envoie_nom_de_client(int socketfd);
-int envoie_operateur_numeros(int socketfd);
-int envoie_couleurs(int socketfd, char *pathname);
+int envoie_recois_message(int socketfd, char *data);
+int envoie_message(int socketfd, char *data);
+int envoie_nom_de_client(int socketfd, char *data);
+int envoie_operateur_numeros(int socketfd, char *data);
+int envoie_couleurs(int socketfd, char *data, char *pathname);
 
 #endif

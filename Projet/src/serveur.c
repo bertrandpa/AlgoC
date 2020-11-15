@@ -5,6 +5,7 @@
  *
  */
 
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
@@ -13,6 +14,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "serveur.h"
@@ -24,19 +26,23 @@ volatile __sig_atomic_t is_running;
  * en retour
  */
 int recois_envoie_message(int client_socket_fd) {
-  struct sockaddr_in client_addr;
-  char data[1024];
+  char data[1024], reponse[1024];
 
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
+  memset(reponse, 0, sizeof(reponse));
 
   // lecture de données envoyées par un client
   int data_size = read(client_socket_fd, (void *)data, sizeof(data));
 
   if (data_size < 0) {
+    close(client_socket_fd);
+    printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture");
     return (EXIT_FAILURE);
   } else if (data_size == 0) {
+    close(client_socket_fd);
+    printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture vide");
     return (EXIT_FAILURE);
   }
@@ -48,41 +54,65 @@ int recois_envoie_message(int client_socket_fd) {
    * Les données envoyées par le client peuvent commencer par le mot "message :"
    * ou un autre mot.
    */
-
   char code[10];
 
   sscanf(data, "%s", code);
   data[strlen(data) - 1] = '\0';
   // Si le message commence par le mot: 'message:'
   if (strcmp(code, "message:") == 0) {
-    renvoie_message(client_socket_fd, data);
+    renvoie_message(client_socket_fd, data, reponse);
   } else if (strcmp(code, "nom:") == 0) {
-    renvoie_nom(client_socket_fd, data);
+    renvoie_nom(client_socket_fd, data, reponse);
   } else if (strcmp(code, "calcule:") == 0) {
-    recois_numeros_calcule(client_socket_fd, data);
-  } else {
-    plot(data);
+    recois_numeros_calcule(client_socket_fd, data, reponse);
+  } else if (strcmp(code, "couleurs:") == 0) {
+    recois_couleurs(client_socket_fd, data, reponse);
   }
-
+  int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
+  if (nbwrite <= 0) {
+    close(client_socket_fd);
+    printf("[-]Client %d déconnecté\n", client_socket_fd);
+    perror("Erreur write");
+    return (EXIT_FAILURE);
+  }
+  printf("[sent] to %d : %s\n", client_socket_fd, reponse);
   // fermer le socket
   close(client_socket_fd);
   printf("[-]Client %d déconnecté\n", client_socket_fd);
   return 0;
 }
 
-void plot(char *data) {
+int save(char *path, char *data) {
+
+  FILE *fd = fopen(path, "ab");
+  if (fd == NULL) {
+    perror("Erreur: open");
+    return (EXIT_FAILURE);
+  }
+  time_t t = time(NULL);
+  char *asct = asctime(localtime(&t));
+  printf("TIME : %s", asct);
+  fprintf(fd, "#save %s \n", asct);
+  // TODO voir si formattage nécessaire avant save
+  fprintf(fd, "%s\n", data);
+  fclose(fd);
+  printf("File %s saved\n", path);
+  return 0;
+}
+
+void plot(char *data, int nbcouleurs) {
 
   // Extraire le compteur et les couleurs RGB
   FILE *p = popen("gnuplot -persist", "w");
-  printf("Plot");
+  printf("Plot\n");
   int count = 0;
-  int n;
+  int slice = 360 / nbcouleurs;
   char *saveptr = NULL;
   char *str = data;
   fprintf(p, "set xrange [-15:15]\n");
   fprintf(p, "set yrange [-15:15]\n");
   fprintf(p, "set style fill transparent solid 0.9 noborder\n");
-  fprintf(p, "set title 'Top 10 colors'\n");
+  fprintf(p, "set title 'Top %d colors'\n", nbcouleurs);
   fprintf(p, "plot '-' with circles lc rgbcolor variable\n");
   while (1) {
     char *token = strtok_r(str, ",", &saveptr);
@@ -91,10 +121,12 @@ void plot(char *data) {
     }
     str = NULL;
     if (count == 0) {
-      n = atoi(token);
+
     } else {
+      // TODO voir gnuplot avec données en sin + cos pour le floating point
+      // TODO en vu du JSON, faire parssage avant et itérer sur un char**
       // Le numéro 36, parceque 360° (cercle) / 10 couleurs = 36
-      fprintf(p, "0 0 10 %d %d 0x%s\n", (count - 1) * 36, count * 36,
+      fprintf(p, "0 0 10 %d %d 0x%s\n", (count - 1) * slice, count * slice,
               token + 1);
     }
     count++;
@@ -106,49 +138,36 @@ void plot(char *data) {
 
 /* renvoyer un message (*data) au client (client_socket_fd)
  */
-int renvoie_message(int client_socket_fd, char *data) {
-  char msg[1024];
-  memset(msg, 0, sizeof(msg));
-  printf("Votre réponse (max %ld caracteres): ", sizeof(msg));
-  if (fgets(msg, sizeof(msg), stdin) == NULL) {
+int renvoie_message(int client_socket_fd, char *data, char *reponse) {
+  char message[1000];
+  memset(message, 0, sizeof(message));
+  printf("Votre réponse (max %ld caracteres): ", sizeof(message));
+  if (fgets(message, sizeof(message), stdin) == NULL) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
   fflush(stdout);
-  int msg_size = write(client_socket_fd, msg, strlen(msg));
-  printf("[send] to %d : %s\n", client_socket_fd, msg);
-
-  if (msg_size < 0) {
-    perror("erreur ecriture");
-    return (EXIT_FAILURE);
-  }
+  strcpy(reponse, "message: ");
+  strcat(reponse, message);
   return 0;
 }
 
-int renvoie_nom(int client_socket_fd, char *data) {
-  int data_size = write(client_socket_fd, data, strlen(data));
-  printf("[send] to %d : %s\n", client_socket_fd, data);
-
-  if (data_size < 0) {
-    perror("erreur ecriture");
-    return (EXIT_FAILURE);
-  }
+int renvoie_nom(int client_socket_fd, char *data, char *reponse) {
+  strcpy(reponse, data);
   return 0;
 }
 
-int recois_numeros_calcule(int client_socket_fd, char *data) {
+int recois_numeros_calcule(int client_socket_fd, char *data, char *reponse) {
   // TODO analsye data
-  char message[1024];
-  memset(message, 0, sizeof(message));
-  char code[10]; // pass en param ?
+  char code[10], operateur[20], erreur[50]; // pass en param ?
   memset(code, 0, sizeof(code));
-  char operateur[20];
   memset(operateur, 0, sizeof(operateur));
-  char erreur[50];
   memset(erreur, 0, sizeof(erreur));
   float operande1, operande2, result;
   operande1 = operande2 = result = 0.0;
-  // TODO remove float trailing zeros
+  // TODO remove float trailing zeros,
+  // or do it only at printing/loading to file ?
+  // TODO use strchr/strrchr/strtok (si plusieurs opérandes) ?
   /* sscanf return number of variables filled*/
   int read_value = sscanf((void *)data, "%s %s %f %f", code, operateur,
                           &operande1, &operande2);
@@ -169,17 +188,28 @@ int recois_numeros_calcule(int client_socket_fd, char *data) {
   } else
     strcpy(erreur, "erreur : format données");
   if (strlen(erreur) != 0)
-    sprintf(message, "%s %s", code, erreur);
+    sprintf(reponse, "%s %s", code, erreur);
   else
-    sprintf(message, "%s %f", code, result);
+    sprintf(reponse, "%s %f", code, result);
+  return 0;
+}
 
-  int data_size = write(client_socket_fd, message, strlen(message));
-  printf("[send] to %d : %s\n", client_socket_fd, message);
-
-  if (data_size < 0) {
-    perror("erreur ecriture");
+int recois_couleurs(int client_socket_fd, char *data, char *reponse) {
+  // strrchr retourne la dernière occurence de ':'
+  // (pour la première voir strchr())
+  int nbcouleurs = atoi(strrchr(data, ':') + 1);
+  if (nbcouleurs > 0) {
+    char file_name[30];
+    // TODO voir comment ajouter le nom reçu du client
+    sprintf(file_name, "files/%d%s", client_socket_fd, "couleurs");
+    printf("%s\n", file_name);
+    save(file_name, data);
+    plot(data, nbcouleurs);
+  } else {
+    perror("Erreur nombre couleurs");
     return (EXIT_FAILURE);
   }
+  sprintf(reponse, "couleurs: enregistre");
   return 0;
 }
 
@@ -246,7 +276,7 @@ int main() {
       return (EXIT_FAILURE);
     }
     printf("[+]Client %d est connecté\n", client_socket_fd);
-    //à thread/fork pour multi client
+    // thread ou fork ?
     /* pid_t pid;
     if ((pid = fork()) < 0) {
       perror("fork");

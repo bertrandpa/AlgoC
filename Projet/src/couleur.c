@@ -161,6 +161,7 @@ static int compare_compteur(const void *ccp1, const void *ccp2,
     }
     return -1;
   }
+  return -1;
 }
 
 // trier le compte de couleurs distincts

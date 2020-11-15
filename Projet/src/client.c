@@ -20,173 +20,193 @@
  * Fonction d'envoi et de réception de messages
  * Il faut un argument : l'identifiant de la socket
  */
-int envoie_recois_message(int socketfd) {
-
+int envoie_recois_message(int socketfd, char *pathname) {
   char data[1024];
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
-  // Demandez à l'utilisateur d'entrer un message
-  char message[1012];
-  memset(message, 0, sizeof(message));
+  int choice;
+  printf(
+      "Choisir un mode d'envoie :\n\tmessage:  1\n\tnom:      2\n\tcalcule:  "
+      "3\n\tcouleurs: 4\n\tbalises:  5\nEntrez le numéro "
+      "correspondant :");
+  char tmp[10];
+  if (fgets(tmp, sizeof(tmp), stdin) == NULL) {
+    perror("erreur scan utilisateur");
+    return (EXIT_FAILURE);
+  }
+  if (sscanf(tmp, "%d", &choice) != 1)
+    return (EXIT_FAILURE);
+  switch (choice) {
+  case 1:
+    strcpy(data, "message: ");
+    envoie_message(socketfd, data);
+    break;
+  case 2:
+    strcpy(data, "nom: ");
+    envoie_nom_de_client(socketfd, data);
+    break;
+  case 3:
+    strcpy(data, "calcule: ");
+    envoie_operateur_numeros(socketfd, data);
+    break;
+  case 4:
+    strcpy(data, "couleurs: ");
+    envoie_couleurs(socketfd, data, pathname);
+    break;
+  case 5:
+    // envoie_balises(socketfd, data) //TODO
+    // break;
+    return (EXIT_SUCCESS);
+  default:
+    return (EXIT_SUCCESS);
+  }
 
-  printf("Votre message (max 1000 caracteres): ");
+  // printf("\n[send] %s\n", data);
+  int write_status = write(socketfd, data, strlen(data));
+  if (write_status <= 0) {
+    perror("erreur ecriture");
+    return (EXIT_FAILURE);
+  }
+  memset(data, 0, sizeof(data));
+  // lire les données de la socket
+  int read_status = read(socketfd, data, sizeof(data));
+  if (read_status <= 0) {
+    perror("erreur lecture");
+    return (EXIT_FAILURE);
+  }
+
+  printf("[recv] %s\n", data);
+
+  return 0;
+}
+
+int envoie_message(int socketfd, char *data) {
+  char message[100];
+  memset(message, 0, sizeof(message));
+  // Demandez à l'utilisateur d'entrer un message
+  printf("Votre message (max 100 caracteres): ");
   if (fgets(message, sizeof(message), stdin) == NULL) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-  fflush(stdout);
-  strcpy(data, "message: ");
+  message[strlen(message) - 1] = '\0';
   strcat(data, message);
-  data[strlen(data)] = '\0';
-
-  int write_status = write(socketfd, data, strlen(data));
-  if (write_status < 0) {
-    perror("erreur ecriture");
-    return (EXIT_FAILURE);
-  }
-
-  memset(data, 0, sizeof(data));
-
-  // lire les données de la socket
-  int read_status = read(socketfd, data, sizeof(data));
-  if (read_status < 0) {
-    perror("erreur lecture");
-    return (EXIT_FAILURE);
-  }
-
-  printf("[recv] %s\n", data);
-
   return 0;
 }
 
-int envoie_nom_de_client(int socketfd) {
-  char data[1024];
-  // la réinitialisation de l'ensemble des données
-  memset(data, 0, sizeof(data));
-
+int envoie_nom_de_client(int socketfd, char *data) {
   // Demandez à l'utilisateur d'entrer un message
-  char message[40];
-  memset(message, 0, sizeof(message));
+  char nom[40];
+  memset(nom, 0, sizeof(nom));
 
   printf("Votre nom (max 20 caracteres): ");
-  fgets(message, sizeof(message) - 1, stdin);
-  strcpy(data, "nom: ");
-  strcat(data, message);
-  data[strlen(data)] = '\0';
-
-  int write_status = write(socketfd, data, strlen(data));
-  if (write_status < 0) {
-    perror("erreur ecriture");
-    exit(EXIT_FAILURE);
-  }
-
-  memset(data, 0, sizeof(data));
-  int read_status = read(socketfd, data, sizeof(data));
-  if (read_status < 0) {
-    perror("erreur lecture");
+  if (fgets(nom, sizeof(nom), stdin) == NULL) {
+    perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-
-  printf("[recv] %s\n", data);
-
+  strcat(data, nom);
   return 0;
 }
 
-int envoie_operateur_numeros(int socketfd) {
-  char data[1024];
-  // la réinitialisation de l'ensemble des données
-  memset(data, 0, sizeof(data));
-
+int envoie_operateur_numeros(int socketfd, char *data) {
   // Demandez à l'utilisateur d'entrer un message
-  char message[1000];
-  memset(message, 0, sizeof(message));
-  printf("Votre calcul infixe (max 1000 caracteres): ");
-  fgets(message, sizeof(message), stdin);
-  // TODO analsye data
-  /* char operator;
-  int operand1, operand2;
-  scanf("%c %d %d", &operator, &operand1, &operand2) */
-  strcpy(data, "calcule: ");
-  strcat(data, message);
-
-  int write_status = write(socketfd, data, strlen(data));
-  if (write_status < 0) {
-    perror("erreur ecriture");
-    exit(EXIT_FAILURE);
-  }
-
-  memset(data, 0, sizeof(data));
-  int read_status = read(socketfd, data, sizeof(data));
-  if (read_status < 0) {
-    perror("erreur lecture");
+  char calcule[1000];
+  memset(calcule, 0, sizeof(calcule));
+  printf("Votre calcule infixe (max 1000 caracteres): ");
+  if (fgets(calcule, sizeof(calcule), stdin) == NULL) {
+    perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-
-  printf("[recv] %s\n", data);
+  // TODO analsye data
+  char operator, spare[10];
+  float operand1, operand2;
+  int nbread =
+      sscanf(calcule, "%c %f %f %s", &operator, &operand1, &operand2, spare);
+  if (nbread != 3 || strlen(spare) != 0) {
+    perror("Erreur format");
+    return (EXIT_FAILURE);
+  }
+  strcpy(data, "calcule: ");
+  strcat(data, calcule);
   return 0;
 }
 
-void analyse(char *pathname, char *data) {
+void analyse(char *pathname, char *data, int nbcouleurs) {
   // compte de couleurs
   couleur_compteur *cc = analyse_bmp_image(pathname);
 
   int count;
-  strcpy(data, "couleurs: ");
-  char temp_string[10] = "10,"; // TODO change size
-  if (cc->size < 10) {
+  char temp_string[10]; // care JSON change
+  /* if (cc->size < 10) {  //?? size = taille_image / {3|4}
     sprintf(temp_string, "%d,", cc->size);
-  }
-  strcat(data, temp_string);
+  } */
 
-  // choisir 10 couleurs
-  // TODO modulé nb couleurs
-  for (count = 1; count < 11 && cc->size - count > 0; count++) {
+  for (count = 1; count < nbcouleurs + 1 && cc->size - count > 0; count++) {
     if (cc->compte_bit == BITS32) {
-      sprintf(temp_string, "#%02x%02x%02x,",
-              cc->cc.cc24[cc->size - count].c.rouge,
-              cc->cc.cc32[cc->size - count].c.vert,
-              cc->cc.cc32[cc->size - count].c.bleu);
-    }
-    if (cc->compte_bit == BITS24) {
-      sprintf(temp_string, "#%02x%02x%02x,",
+      sprintf(temp_string, ",#%02x%02x%02x",
               cc->cc.cc32[cc->size - count].c.rouge,
               cc->cc.cc32[cc->size - count].c.vert,
               cc->cc.cc32[cc->size - count].c.bleu);
     }
+    if (cc->compte_bit == BITS24) {
+      sprintf(temp_string, ",#%02x%02x%02x",
+              cc->cc.cc24[cc->size - count].c.rouge,
+              cc->cc.cc24[cc->size - count].c.vert,
+              cc->cc.cc24[cc->size - count].c.bleu);
+    }
     strcat(data, temp_string);
   }
-
-  // enlever le dernier virgule
-  data[strlen(data) - 1] = '\0';
 }
-// TODO finir
-int envoie_couleurs(int socketfd, char *pathname) {
-  char data[1024];
-  memset(data, 0, sizeof(data));
-  char message[1000];
-  memset(message, 0, sizeof(message));
-  uint nbcouleurs;
-  do {
-    printf("Votre nombre de couleurs à envoyer (<30): ");
-    scanf("%u\n", nbcouleurs);
-  } while (nbcouleurs > 30);
-  // analyse(pathname, data); // TODO add nbcouleurs param
 
-  int write_status = write(socketfd, data, strlen(data));
-  printf("Couleurs envoyées : %s\n", data);
-  if (write_status < 0) {
-    perror("erreur ecriture");
-    exit(EXIT_FAILURE);
+int envoie_couleurs(int socketfd, char *data, char *pathname) {
+  char couleurs[1000];
+  memset(couleurs, 0, sizeof(couleurs));
+  uint nbcouleurs = 0;
+  if (pathname != NULL) {
+    do {
+      printf("Votre nombre de couleurs à envoyer (<30): ");
+      scanf("%u", &nbcouleurs);
+      printf("%u\n", nbcouleurs);
+    } while (nbcouleurs > 30);
+    analyse(pathname, couleurs, nbcouleurs);
+  } else {
+    char tmp_couleur[10];
+    do {
+      memset(tmp_couleur, 0, sizeof(tmp_couleur));
+      uint32_t couleur;
+      printf("Votre couleur (format hexa): ");
+      if (fgets(tmp_couleur, sizeof(tmp_couleur), stdin) == NULL) {
+        perror("erreur scan utilisateur");
+        return (EXIT_FAILURE);
+      }
+      // vérifie le format hexa
+      if (sscanf(tmp_couleur, "%x", &couleur) == 1) {
+        // remplace le \n du fgets par '\0'
+        tmp_couleur[strlen(tmp_couleur) - 1] = '\0';
+        // test 6 digit hexa
+        if (strlen(tmp_couleur) == 6) {
+          nbcouleurs++;
+          strcat(couleurs, ",#");
+          strcat(couleurs, tmp_couleur);
+        } else {
+          printf("Erreur format\n");
+        }
+
+      } else {
+        printf("\nFin de la saisie\n");
+        break;
+      }
+    } while (nbcouleurs < 31);
   }
-
+  sprintf(data, "couleurs: %d", nbcouleurs);
+  strcat(data, couleurs);
   return 0;
 }
 
 int main(int argc, char **argv) {
   int socketfd;
-  int bind_status;
 
-  struct sockaddr_in server_addr, client_addr;
+  struct sockaddr_in server_addr;
 
   /*
    * Creation d'une socket
@@ -210,10 +230,8 @@ int main(int argc, char **argv) {
     perror("connection serveur");
     exit(EXIT_FAILURE);
   }
-  // envoie_recois_message(socketfd);
-  // envoie_nom_de_client(socketfd);
-  envoie_operateur_numeros(socketfd);
-  // envoie_couleurs(socketfd, argv[1]);
+  // TODO arbre choix ?
+  envoie_recois_message(socketfd, argv[1]);
 
   close(socketfd);
 }
