@@ -107,12 +107,14 @@ void plot(char *data, int nbcouleurs) {
   FILE *p = popen("gnuplot -persist", "w");
   printf("Plot\n");
   int count = 0;
+  // taille d'un slice du camembert
   int slice = 360 / nbcouleurs;
   char *saveptr = NULL;
   char *str = data;
   fprintf(p, "set xrange [-15:15]\n");
   fprintf(p, "set yrange [-15:15]\n");
   fprintf(p, "set style fill transparent solid 0.9 noborder\n");
+  // Change le titre en fonction de couleurs
   fprintf(p, "set title 'Top %d colors'\n", nbcouleurs);
   fprintf(p, "plot '-' with circles lc rgbcolor variable\n");
   while (1) {
@@ -160,7 +162,7 @@ int renvoie_nom(int client_socket_fd, char *data, char *reponse) {
 
 int recois_numeros_calcule(int client_socket_fd, char *data, char *reponse) {
   // TODO analsye data
-  char code[10], operateur[20], erreur[50]; // pass en param ?
+  char code[10], operateur[20], erreur[50];
   memset(code, 0, sizeof(code));
   memset(operateur, 0, sizeof(operateur));
   memset(erreur, 0, sizeof(erreur));
@@ -169,9 +171,10 @@ int recois_numeros_calcule(int client_socket_fd, char *data, char *reponse) {
   // TODO remove float trailing zeros,
   // or do it only at printing/loading to file ?
   // TODO use strchr/strrchr/strtok (si plusieurs opérandes) ?
-  /* sscanf return number of variables filled*/
+  /* sscanf retourne le nombre de variables remplies */
   int read_value = sscanf((void *)data, "%s %s %f %f", code, operateur,
                           &operande1, &operande2);
+
   if (read_value > 2) {
     if (strcmp(operateur, "+") == 0)
       result = operande1 + operande2;
@@ -203,7 +206,7 @@ int recois_couleurs(int client_socket_fd, char *data, char *reponse) {
     char file_name[30];
     // TODO voir comment ajouter le nom reçu du client
     sprintf(file_name, "files/%d%s", client_socket_fd, "couleurs");
-    printf("%s\n", file_name);
+    // printf("%s\n", file_name);
     save(file_name, data);
     plot(data, nbcouleurs);
   } else {
@@ -219,7 +222,7 @@ int recois_balises(int client_socket_fd, char *data, char *reponse) {
   if (nbbalises > 0) {
     char file_name[30];
     sprintf(file_name, "files/%d%s", client_socket_fd, "balises");
-    printf("%s\n", file_name);
+    // printf("%s\n", file_name);
     save(file_name, data);
   } else {
     perror("Erreur nombre balises");
@@ -231,6 +234,8 @@ int recois_balises(int client_socket_fd, char *data, char *reponse) {
 }
 
 // TODO fermer toutes les fenêtres gnuplot
+
+// Handle l'interruption
 void sighandler(int sigint) {
   if (is_running == 0)
     return;
@@ -245,6 +250,7 @@ int main() {
 
   struct sockaddr_in server_addr, client_addr;
 
+  // bind l'action CTRL+C à la fonction
   struct sigaction action;
   sigemptyset(&action.sa_mask);
   action.sa_handler = sighandler;

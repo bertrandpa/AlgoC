@@ -97,10 +97,8 @@ int envoie_message(int socketfd, char *data) {
 }
 
 int envoie_nom_de_client(int socketfd, char *data) {
-  // Demandez à l'utilisateur d'entrer un message
   char nom[40];
   memset(nom, 0, sizeof(nom));
-
   printf("Votre nom (max 20 caracteres): ");
   if (fgets(nom, sizeof(nom), stdin) == NULL) {
     perror("erreur scan utilisateur");
@@ -111,7 +109,6 @@ int envoie_nom_de_client(int socketfd, char *data) {
 }
 
 int envoie_operateur_numeros(int socketfd, char *data) {
-  // Demandez à l'utilisateur d'entrer un message
   char calcule[1000];
   memset(calcule, 0, sizeof(calcule));
   printf("Votre calcule infixe (max 1000 caracteres): ");
@@ -119,9 +116,9 @@ int envoie_operateur_numeros(int socketfd, char *data) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-  // TODO analsye data
   char operator, spare[10];
   float operand1, operand2;
+  // TODO refactor pour JSON (fgets + parse)
   int nbread =
       sscanf(calcule, "%c %f %f %s", &operator, &operand1, &operand2, spare);
   if (nbread != 3 || strlen(spare) != 0) {
@@ -141,9 +138,6 @@ int analyse(char *pathname, char *data, int nbcouleurs) {
 
   int count;
   char temp_string[10]; // care JSON change
-  /* if (cc->size < 10) {  //?? size = taille_image / {3|4}
-    sprintf(temp_string, "%d,", cc->size);
-  } */
 
   for (count = 1; count < nbcouleurs + 1 && cc->size - count > 0; count++) {
     if (cc->compte_bit == BITS32) {
@@ -175,6 +169,7 @@ int envoie_couleurs(int socketfd, char *data, char *pathname) {
     if (analyse(pathname, couleurs, nbcouleurs))
       return (EXIT_FAILURE);
   } else {
+    // Fonction de validation du format passée en paramètre
     nbcouleurs = read_input(couleurs, iscouleurs);
   }
   sprintf(data, "couleurs: %d", nbcouleurs);
@@ -186,14 +181,17 @@ int envoie_balises(int socketfd, char *data) {
 
   char balises[1000];
   memset(balises, 0, sizeof(balises));
+  // Fonction de validation du format passée en paramètre
   uint nbbalises = read_input(balises, isbalises);
   sprintf(data, "balises: %d", nbbalises);
   strcat(data, balises);
   return 0;
 }
 
+// test validation format couleur
 int iscouleurs(char *couleur) {
   uint32_t hexa_color;
+  // test format hexa
   if (sscanf(couleur, "%x", &hexa_color) == 1) {
     // test 6 digit hexa
     if (strlen(couleur) == 6) {
@@ -206,6 +204,7 @@ int iscouleurs(char *couleur) {
   }
 }
 
+// test validation format balise
 int isbalises(char *balise) {
   for (int i = 0; i < strlen(balise); i++) {
     if (!isalnum(balise[i]))
@@ -216,6 +215,7 @@ int isbalises(char *balise) {
   return 0;
 }
 
+// On passe la fonction de test en paramètre
 int read_input(char *data, int (*test)(char *)) {
   uint count = 0;
   char tmp_str[30];
@@ -227,14 +227,20 @@ int read_input(char *data, int (*test)(char *)) {
       return (EXIT_FAILURE);
     }
     tmp_str[strlen(tmp_str) - 1] = '\0';
+    // Recupère état du test format
     int format = test(tmp_str);
+    // format OK
     if (format == 0) {
       strcat(data, ", #");
       strcat(data, tmp_str);
       count++;
-    } else if (format == 1) {
+    }
+    // format erroné
+    else if (format == 1) {
       printf("Erreur format\n");
-    } else {
+    }
+    // format fin
+    else {
       printf("\nFin de la saisie\n");
       break;
     }
