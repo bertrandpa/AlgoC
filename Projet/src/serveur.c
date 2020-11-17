@@ -17,6 +17,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "json.h"
 #include "serveur.h"
 
 volatile __sig_atomic_t is_running;
@@ -27,10 +28,11 @@ volatile __sig_atomic_t is_running;
  */
 int recois_envoie_message(int client_socket_fd) {
   char data[1024], reponse[1024];
-
+  json_msg json_data;
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
   memset(reponse, 0, sizeof(reponse));
+  memset(&json_data, 0, sizeof(json_msg));
 
   // lecture de données envoyées par un client
   int data_size = read(client_socket_fd, (void *)data, sizeof(data));
