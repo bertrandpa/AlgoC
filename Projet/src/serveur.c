@@ -49,6 +49,8 @@ int recois_envoie_message(int client_socket_fd) {
 
   printf("Message recu: %s\n", data);
 
+  // TODO parse msg
+
   /*
    * extraire le code des données envoyées par le client.
    * Les données envoyées par le client peuvent commencer par le mot "message :"
@@ -56,20 +58,22 @@ int recois_envoie_message(int client_socket_fd) {
    */
   char code[10];
 
-  sscanf(data, "%s", code);
   data[strlen(data) - 1] = '\0';
+  sscanf(data, "%s", code);
   // Si le message commence par le mot: 'message:'
+  // TODO remplacer data/reponse par struct JsonMsg*
   if (strcmp(code, "message:") == 0) {
+    //
     renvoie_message(client_socket_fd, data, reponse);
   } else if (strcmp(code, "nom:") == 0) {
     renvoie_nom(client_socket_fd, data, reponse);
-  } else if (strcmp(code, "calcule:") == 0) {
-    recois_numeros_calcule(client_socket_fd, data, reponse);
-  } else if (strcmp(code, "couleurs:") == 0) {
-    recois_couleurs(client_socket_fd, data, reponse);
-  } else if (strcmp(code, "balises:") == 0) {
-    recois_balises(client_socket_fd, data, reponse);
-  }
+  } /*  else if (strcmp(code, "calcule:") == 0) {
+     recois_numeros_calcule(client_socket_fd, data, reponse);
+   } else if (strcmp(code, "couleurs:") == 0) {
+     recois_couleurs(client_socket_fd, data, reponse);
+   } else if (strcmp(code, "balises:") == 0) {
+     recois_balises(client_socket_fd, data, reponse);
+   } */
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
     close(client_socket_fd);
