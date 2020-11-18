@@ -13,7 +13,15 @@
         "string": "c",
         "string_view": "c",
         "ranges": "c",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "optional": "c",
+        "istream": "c",
+        "ostream": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "variant": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }
