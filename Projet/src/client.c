@@ -172,10 +172,7 @@ int analyse(char *pathname, json_msg *data, int nbcouleurs) {
     return (EXIT_FAILURE);
 
   int count;
-  char temp_string[10]; // care JSON change
-  /* if (cc->size < 10) {  //?? size = taille_image / {3|4}
-    sprintf(temp_string, "%d,", cc->size);
-  } */
+  char temp_string[10];
 
   for (count = 1; count < nbcouleurs + 1 && cc->size - count > 0; count++) {
     if (cc->compte_bit == BITS32) {
@@ -204,12 +201,12 @@ int envoie_couleurs(int socketfd, json_msg *data, char *pathname) {
     do {
       printf("Votre nombre de couleurs à envoyer (<30): ");
       scanf("%u", &nbcouleurs);
-    } while (nbcouleurs > 30);
+    } while (nbcouleurs > 30 && nbcouleurs < 1);
     if (analyse(pathname, data, nbcouleurs))
       return (EXIT_FAILURE);
   } else {
     nbcouleurs = read_input(data, iscouleurs);
-    }
+  }
   strcpy(data->valeurs[nbcouleurs + 1], "END\0");
   sprintf(data->valeurs[0], "%u", nbcouleurs);
   return 0;
@@ -220,13 +217,10 @@ int envoie_balises(int socketfd, json_msg *data) {
   uint nbbalises = read_input(data, isbalises);
   sprintf(data->valeurs[0], "%u", nbbalises);
   strcpy(data->valeurs[nbbalises + 1], "END\0");
-  /* char res[300];
-  sprintf(res, "%d", nbbalises);
-  strcat(res, balises);
-  strcat(data->valeurs[0], res); */
   return 0;
 }
 
+// TODO déplacer dans json
 int iscouleurs(char *couleur) {
   uint32_t hexa_color;
   if (sscanf(couleur, "%x", &hexa_color) == 1) {
@@ -240,7 +234,7 @@ int iscouleurs(char *couleur) {
     return -1;
   }
 }
-
+// TODO déplacer dans json
 int isbalises(char *balise) {
   for (int i = 0; i < strlen(balise); i++) {
     if (!isalnum(balise[i]))
@@ -256,7 +250,7 @@ int read_input(json_msg *data, int(test)(char *)) {
   char tmp_str[30];
   do {
     memset(tmp_str, 0, sizeof(tmp_str));
-    printf("Votre input : ");
+    printf("Votre input %d : ", count + 1);
     if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
       perror("erreur scan utilisateur");
       return (EXIT_FAILURE);
@@ -264,6 +258,8 @@ int read_input(json_msg *data, int(test)(char *)) {
     tmp_str[strlen(tmp_str) - 1] = '\0';
     int format = test(tmp_str);
     if (format == 0) {
+      // TODO handle complex operation arg list (double)
+      // TODO DYN
       sprintf(data->valeurs[count + 1], "#%s", tmp_str);
       count++;
     } else if (format == 1) {
