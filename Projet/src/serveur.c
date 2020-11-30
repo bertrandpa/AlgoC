@@ -27,12 +27,17 @@ volatile __sig_atomic_t is_running;
  */
 int recois_envoie_message(int client_socket_fd) {
   char data[1024], reponse[1024], savedata[1024];
-  json_msg json_data, json_reponse;
+  json_msg *json_data, *json_reponse;
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
   memset(reponse, 0, sizeof(reponse));
-  memset(&json_data, 0, sizeof(json_data));
-  memset(&json_reponse, 0, sizeof(json_reponse));
+  json_data = (json_msg *)malloc(sizeof(json_msg));
+  json_reponse = (json_msg *)malloc(sizeof(json_msg));
+  // TODO fix
+  memset((void *)json_data, 0, sizeof(*json_data));
+  memset((void *)json_reponse, 0, sizeof(*json_reponse));
+  /*   memset(&json_data, 0, sizeof(json_data));
+    memset(&json_reponse, 0, sizeof(json_reponse)); */
 
   // lecture de données envoyées par un client
   int data_size = read(client_socket_fd, (void *)data, sizeof(data));
@@ -52,10 +57,10 @@ int recois_envoie_message(int client_socket_fd) {
   printf("Message recu: \n%s\n", data);
   // TODO parse msg
   strncpy(savedata, data, sizeof(data));
-  parse_json(savedata, &json_data);
-  strcpy(json_reponse.code, json_data.code);
+  parse_json(savedata, json_data);
+  strcpy(json_reponse->code, json_data->code);
   // fix
-  printf("code = %s\n", json_data.code);
+  printf("code = %s\n", json_data->code);
 
   /*
    * extraire le code des données envoyées par le client.
@@ -64,25 +69,30 @@ int recois_envoie_message(int client_socket_fd) {
    *
    */
   // Si le message commence par le mot: 'message:'
-  if (strcmp(json_data.code, "message") == 0) {
-    //
-    renvoie_message(client_socket_fd, &json_data, &json_reponse);
-  } else if (strcmp(json_data.code, "nom") == 0) {
-    renvoie_nom(client_socket_fd, &json_data, &json_reponse);
+  if (strcmp(json_data->code, "message") == 0) {
+    // Init array
+    json_reponse->valeurs.str_array = malloc(sizeof(char *));
+    renvoie_message(client_socket_fd, json_data, json_reponse);
+  } else if (strcmp(json_data->code, "nom") == 0) {
+    renvoie_nom(client_socket_fd, json_data, json_reponse);
 
-  } else if (strcmp(json_data.code, "calcule") == 0) {
-    recois_numeros_calcule(client_socket_fd, &json_data, &json_reponse);
+  } /*  else if (strcmp(json_data->code, "calcule") == 0) {
+     recois_numeros_calcule(client_socket_fd, &json_data, &json_reponse);
 
-  } else if (strcmp(json_data.code, "couleurs") == 0) {
-    recois_couleurs(client_socket_fd, &json_data, &json_reponse);
+   } else if (strcmp(json_data->code, "couleurs") == 0) {
+     recois_couleurs(client_socket_fd, &json_data, &json_reponse);
 
-  } else if (strcmp(json_data.code, "balises") == 0) {
-    recois_balises(client_socket_fd, &json_data, &json_reponse);
-  }
+   } else if (strcmp(json_data->code, "balises") == 0) {
+     recois_balises(client_socket_fd, &json_data, &json_reponse);
+   } */
 
-  strcpy(json_reponse.valeurs[1], "END\0");
+  // strcpy(json_reponse.valeurs[1], "END\0");
 
-  to_json(reponse, &json_reponse);
+  to_json(reponse, json_reponse);
+  printf("after json");
+  // fix me, pb allocation ?
+  delete_json(json_data);
+  delete_json(json_reponse);
   // reponse[strlen(reponse) - 1] = '\0';
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
@@ -117,7 +127,7 @@ int save(char *path, json_msg *data) {
   return 0;
 }
 
-void plot(json_msg *data, int nbcouleurs) {
+void plot(char **data, int nbcouleurs) {
 
   // Extraire le compteur et les couleurs RGB
   FILE *p = popen("gnuplot -persist", "w");
@@ -131,7 +141,7 @@ void plot(json_msg *data, int nbcouleurs) {
   fprintf(p, "plot '-' with circles lc rgbcolor variable\n");
   // test limit
   while (count < nbcouleurs) {
-    char *couleur = data->valeurs[count + 1];
+    char *couleur = data[count];
     // TODO voir gnuplot avec données en sin + cos pour le floating point
     // TODO en vu du JSON, faire parssage avant et itérer sur un char**
     // Le numéro 36, parceque 360° (cercle) / 10 couleurs = 36
@@ -156,55 +166,62 @@ int renvoie_message(int client_socket_fd, json_msg *data, json_msg *reponse) {
     return (EXIT_FAILURE);
   }
   message[strlen(message) - 1] = '\0';
-  strcpy(reponse->valeurs[0], message);
+  reponse->size = data->size;
+  reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(message) + 1));
+  memcpy(reponse->valeurs.str_array[0], message, strlen(message) + 1);
   return 0;
 }
 
 int renvoie_nom(int client_socket_fd, json_msg *data, json_msg *reponse) {
-  strcpy(reponse->valeurs[0], data->valeurs[0]);
+  reponse->size = data->size;
+  // On renvoie le nom
+  reponse->valeurs.str_array = data->valeurs.str_array;
+  data->valeurs.str_array = NULL;
   return 0;
 }
 
 int recois_numeros_calcule(int client_socket_fd, json_msg *data,
                            json_msg *reponse) {
+  /*
+    char code[10], *operateur = data->valeurs[0], erreur[50];
 
-  char code[10], *operateur = data->valeurs[0], erreur[50];
+    memset(code, 0, sizeof(code));
+    memset(erreur, 0, sizeof(erreur));
+    double operande1, operande2, result;
+    operande1 = atof(data->valeurs[1]);
+    operande2 = atof(data->valeurs[2]);
+    result = 0.0;
+    printf("opera : %s, op1 %f, ope2 %f\n", operateur, operande1, operande2);
+    // TODO remove float trailing zeros,
+    // or do it only at printing/loading to file ?
 
-  memset(code, 0, sizeof(code));
-  memset(erreur, 0, sizeof(erreur));
-  float operande1, operande2, result;
-  operande1 = atof(data->valeurs[1]);
-  operande2 = atof(data->valeurs[2]);
-  result = 0.0;
-  printf("opera : %s, op1 %f, ope2 %f\n", operateur, operande1, operande2);
-  // TODO remove float trailing zeros,
-  // or do it only at printing/loading to file ?
-
-  // Change to handle several operation
-  if (operande1 != 0.0 && strcmp(data->valeurs[2], "END") != 0) {
-    if (strcmp(operateur, "+") == 0)
-      result = operande1 + operande2;
-    else if (strcmp(operateur, "-") == 0)
-      result = operande1 - operande2;
-    else if (strcmp(operateur, "*") == 0)
-      result = operande1 * operande2;
-    else if (strcmp(operateur, "/") == 0) {
-      if (operande2 == 0)
-        strcpy(erreur, "erreur division par zéro");
-      else
-        result = operande1 / operande2;
+    // Change to handle several operation
+    if (operande1 != 0.0 && strcmp(data->valeurs[2], "END") != 0) {
+      if (strcmp(operateur, "+") == 0)
+        result = operande1 + operande2;
+      else if (strcmp(operateur, "-") == 0)
+        result = operande1 - operande2;
+      else if (strcmp(operateur, "*") == 0)
+        result = operande1 * operande2;
+      else if (strcmp(operateur, "/") == 0) {
+        if (operande2 == 0)
+          strcpy(erreur, "erreur division par zéro");
+        else
+          result = operande1 / operande2;
+      } else
+        strcpy(erreur, "erreur opération inconnue");
     } else
-      strcpy(erreur, "erreur opération inconnue");
-  } else
-    strcpy(erreur, "erreur format données");
-  if (strlen(erreur) != 0)
-    strcpy(reponse->valeurs[0], erreur);
-  else
-    sprintf(reponse->valeurs[0], "%f", result);
+      strcpy(erreur, "erreur format données");
+    if (strlen(erreur) != 0)
+      strcpy(reponse->valeurs[0], erreur);
+    else
+      sprintf(reponse->valeurs[0], "%f", result);
+      */
   return 0;
 }
 
 int recois_couleurs(int client_socket_fd, json_msg *data, json_msg *reponse) {
+  /*
   // strrchr retourne la dernière occurence de ':'
   // (pour la première voir strchr())
   int nbcouleurs = atoi(data->valeurs[0]);
@@ -214,16 +231,18 @@ int recois_couleurs(int client_socket_fd, json_msg *data, json_msg *reponse) {
     sprintf(file_name, "files/%d%s", client_socket_fd, "couleurs");
     printf("%s\n", file_name);
     save(file_name, data);
-    plot(data, nbcouleurs);
+    plot(data->valeurs.str_array, nbcouleurs);
   } else {
     strcpy(reponse->valeurs[0], "erreur nombre couleurs");
     return (EXIT_FAILURE);
   }
   strcpy(reponse->valeurs[0], "enregistre");
+  */
   return 0;
 }
 
 int recois_balises(int client_socket_fd, json_msg *data, json_msg *reponse) {
+  /*
   int nbbalises = atoi(data->valeurs[0]);
   if (nbbalises > 0) {
     char file_name[30];
@@ -235,7 +254,7 @@ int recois_balises(int client_socket_fd, json_msg *data, json_msg *reponse) {
     return (EXIT_FAILURE);
   }
   strcpy(reponse->valeurs[0], "enregistre");
-
+*/
   return 0;
 }
 

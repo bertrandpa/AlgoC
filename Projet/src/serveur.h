@@ -12,7 +12,7 @@
 
 #include "json.h"
 
-void plot(json_msg *data, int nbcouleurs);
+void plot(char **data, int nbcouleurs);
 int renvoie_message(int client_socket_fd, json_msg *data, json_msg *reponse);
 int renvoie_nom(int client_socket_fd, json_msg *data, json_msg *reponse);
 int recois_numeros_calcule(int client_socket_fd, json_msg *data,

@@ -18,5 +18,5 @@ $(CLIENT): $(COBJS)
 
 
 .c.o: 
-	$(CC) -c $*.c -Wall
+	$(CC) -c $*.c -Wall -Wextra -g
 
