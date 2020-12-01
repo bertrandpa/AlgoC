@@ -22,13 +22,13 @@
  */
 
 int envoie_recois_message(int socketfd, char *data);
-int envoie_message(int socketfd, json_msg *data);
-int envoie_nom_de_client(int socketfd, json_msg *data);
-int envoie_operateur_numeros(int socketfd, json_msg *data);
-int envoie_couleurs(int socketfd, json_msg *data, char *pathname);
-int envoie_balises(int socketfd, json_msg *data);
+int envoie_message(json_msg *data);
+int envoie_nom_de_client(json_msg *data);
+int envoie_operateur_numeros(json_msg *data);
+int envoie_couleurs(json_msg *data, char *pathname);
+int envoie_balises(json_msg *data);
 int iscouleurs(char *couleur);
 int isbalises(char *balise);
-int read_input(json_msg *data, int (*test)(char *));
+int read_string(json_msg *data, int (*test)(char *));
 
 #endif

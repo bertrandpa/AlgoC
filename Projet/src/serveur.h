@@ -13,12 +13,11 @@
 #include "json.h"
 
 void plot(char **data, int nbcouleurs);
-int renvoie_message(int client_socket_fd, json_msg *data, json_msg *reponse);
-int renvoie_nom(int client_socket_fd, json_msg *data, json_msg *reponse);
-int recois_numeros_calcule(int client_socket_fd, json_msg *data,
-                           json_msg *reponse);
-int recois_couleurs(int client_socket_fd, json_msg *data, json_msg *reponse);
-int recois_balises(int client_socket_fd, json_msg *data, json_msg *reponse);
+int renvoie_message(json_msg *data, json_msg *reponse);
+int renvoie_nom(json_msg *data, json_msg *reponse);
+int recois_numeros_calcule(json_msg *data, json_msg *reponse);
+int recois_couleurs(json_msg *data, json_msg *reponse);
+int recois_balises(json_msg *data, json_msg *reponse);
 
 /* accepter la nouvelle connection d'un client et lire les données
  * envoyées par le client. En suite, le serveur envoie un message

@@ -50,7 +50,8 @@ int envoie_recois_message(int socketfd, char *pathname) {
     // allocation d'un array de 1 char *
     json->valeurs.str_array = calloc(json->size, sizeof(char *));
     // set le char valeurs dans la structure
-    if (envoie_message(socketfd, json)) {
+    if (envoie_message(json)) {
+      delete_json(json);
       return (EXIT_SUCCESS);
     }
     break;
@@ -59,31 +60,33 @@ int envoie_recois_message(int socketfd, char *pathname) {
     json->size = 1;
     json->valeurs.str_array = calloc(json->size, sizeof(char *));
     printf("after allocation\n");
-    if (envoie_nom_de_client(socketfd, json)) {
+    if (envoie_nom_de_client(json)) {
+      delete_json(json);
       return (EXIT_SUCCESS);
     }
     break; /*
    case 3:
      memcpy(json.code, "calcule", 9);
-     if (envoie_operateur_numeros(socketfd, &json)) {
+     if (envoie_operateur_numeros( &json)) {
        return (EXIT_SUCCESS);
      }
-     break;
-   case 4:
-     memcpy(json.code, "couleurs", 10);
-     if (envoie_couleurs(socketfd, &json, pathname)) {
-       return (EXIT_SUCCESS);
-     }
-     break;
-   case 5:
-     memcpy(json.code, "balises", 9);
-     if (envoie_balises(socketfd, &json)) {
-       return (EXIT_SUCCESS);
-     }
-
-     break;
-     return (EXIT_SUCCESS); */
+     break;*/
+  case 4:
+    memcpy(json->code, "couleurs", 10);
+    if (envoie_couleurs(json, pathname)) {
+      delete_json(json);
+      return (EXIT_SUCCESS);
+    }
+    break;
+  case 5:
+    memcpy(json->code, "balises", 9);
+    if (envoie_balises(json)) {
+      delete_json(json);
+      return (EXIT_SUCCESS);
+    }
+    break;
   default:
+    delete_json(json);
     return (EXIT_SUCCESS);
   }
   // utilise la structure pour convertir
@@ -114,7 +117,7 @@ int envoie_recois_message(int socketfd, char *pathname) {
   return 0;
 }
 
-int envoie_message(int socketfd, json_msg *data) {
+int envoie_message(json_msg *data) {
   char message[100];
   memset(message, 0, sizeof(message));
   // Demandez à l'utilisateur d'entrer un message
@@ -129,7 +132,7 @@ int envoie_message(int socketfd, json_msg *data) {
   return 0;
 }
 
-int envoie_nom_de_client(int socketfd, json_msg *data) {
+int envoie_nom_de_client(json_msg *data) {
   // Demandez à l'utilisateur d'entrer un message
   char nom[40];
   memset(nom, 0, sizeof(nom));
@@ -145,7 +148,7 @@ int envoie_nom_de_client(int socketfd, json_msg *data) {
   return 0;
 }
 
-int envoie_operateur_numeros(int socketfd, json_msg *data) {
+int envoie_operateur_numeros(json_msg *data) {
   // Demandez à l'utilisateur d'entrer un message
   char calcule[1000];
   memset(calcule, 0, sizeof(calcule));
@@ -173,16 +176,17 @@ int envoie_operateur_numeros(int socketfd, json_msg *data) {
   return 0;
 }
 
-int analyse(char *pathname, json_msg *data, int nbcouleurs) {
+char **analyse(char *pathname, int nbcouleurs) {
   // compte de couleurs
   couleur_compteur *cc = analyse_bmp_image(pathname);
+  char **couleurs = malloc(sizeof(char *) * nbcouleurs);
   if (cc == NULL)
-    return (EXIT_FAILURE);
+    return NULL;
 
   int count;
   char temp_string[10];
 
-  for (count = 1; count < nbcouleurs + 1 && cc->size - count > 0; count++) {
+  for (count = 0; count < nbcouleurs && cc->size - count > 0; count++) {
     if (cc->compte_bit == BITS32) {
       sprintf(temp_string, "#%02x%02x%02x",
               cc->cc.cc32[cc->size - count].c.rouge,
@@ -195,13 +199,15 @@ int analyse(char *pathname, json_msg *data, int nbcouleurs) {
               cc->cc.cc24[cc->size - count].c.vert,
               cc->cc.cc24[cc->size - count].c.bleu);
     }
-    // strcpy(data->valeurs[count], temp_string);*
-    memcpy(data->valeurs.str_array[count], temp_string, strlen(temp_string));
+    printf(" ( %s\n", temp_string);
+    couleurs[count] = malloc(sizeof(char) * (strlen(temp_string) + 1));
+    memcpy(couleurs[count], temp_string, strlen(temp_string) + 1);
+    printf(" %s )\n", couleurs[count]);
   }
-  return 0;
+  return couleurs;
 }
 
-int envoie_couleurs(int socketfd, json_msg *data, char *pathname) {
+int envoie_couleurs(json_msg *data, char *pathname) {
   char couleurs[1000];
   memset(couleurs, 0, sizeof(couleurs));
   uint nbcouleurs = 0;
@@ -211,21 +217,27 @@ int envoie_couleurs(int socketfd, json_msg *data, char *pathname) {
       printf("Votre nombre de couleurs à envoyer (<30): ");
       scanf("%u", &nbcouleurs);
     } while (nbcouleurs > 30 && nbcouleurs < 1);
-    if (analyse(pathname, data, nbcouleurs))
-      return (EXIT_FAILURE);
+    char **arr = analyse(pathname, nbcouleurs);
+    printf("%s, %ld\n", arr[0], strlen(*arr));
+    data->size = nbcouleurs;
+    data->valeurs.str_array = arr;
+
   } else {
-    nbcouleurs = read_input(data, iscouleurs);
+    // TODO fix
+    data->size = read_string(data, iscouleurs);
   }
+  if (data->valeurs.str_array == NULL)
+    return (EXIT_FAILURE);
   /* strcpy(data->valeurs[nbcouleurs + 1], "END\0");
   sprintf(data->valeurs[0], "%u", nbcouleurs); */
   return 0;
 }
 
-int envoie_balises(int socketfd, json_msg *data) {
-
-  uint nbbalises = read_input(data, isbalises);
-  /* sprintf(data->valeurs[0], "%u", nbbalises);
-  strcpy(data->valeurs[nbbalises + 1], "END\0"); */
+int envoie_balises(json_msg *data) {
+  data->size = read_string(data, isbalises);
+  printf("size read : %ld\n", sizeof(data->valeurs.str_array));
+  if (data->valeurs.str_array == NULL)
+    return (EXIT_FAILURE);
   return 0;
 }
 
@@ -236,51 +248,79 @@ int iscouleurs(char *couleur) {
     // test 6 digit hexa
     if (strlen(couleur) == 6) {
       return 0;
-    } else {
-      return 1;
     }
-  } else {
-    return -1;
   }
+  return 1;
 }
 // TODO déplacer dans json
 int isbalises(char *balise) {
   for (size_t i = 0; i < strlen(balise); i++) {
-    if (!isalnum(balise[i]))
-      return -1;
-    else if (!isalpha(balise[i]))
+    if (!isalpha(balise[i]))
       return 1;
   }
   return 0;
 }
+
 // TODO only take array arg
-int read_input(json_msg *data, int(test)(char *)) {
+int read_string(json_msg *data, int(test)(char *)) {
   uint count = 0;
-  char tmp_str[30];
+  char tmp_str[50];
+  char **arr = malloc(MAX_INPUT * sizeof(char *));
   do {
     memset(tmp_str, 0, sizeof(tmp_str));
-    printf("Votre input %d : ", count + 1);
+    printf("Votre input n°%d (& pour arreter la saisie): ", count + 1);
     if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
       perror("erreur scan utilisateur");
       return (EXIT_FAILURE);
     }
     tmp_str[strlen(tmp_str) - 1] = '\0';
-    // use void* to polymorph
     int format = test(tmp_str);
     if (format == 0) {
-      // TODO handle complex operation arg list (double)
-      // TODO DYN
-      // sprintf(data->valeurs[count + 1], "#%s", tmp_str);
+      arr[count] = malloc(strlen(tmp_str) + 2);
+      sprintf(arr[count], "#%s", tmp_str);
+      printf("arr[%d] = %s, size : %ld\n", count, arr[count],
+             strlen(arr[count]));
       count++;
-    } else if (format == 1) {
-      printf("Erreur format\n");
-    } else {
+    } else if (strcmp(tmp_str, "&") == 0) {
       printf("\nFin de la saisie\n");
       break;
+    } else {
+      printf("Erreur format\n");
     }
-  } while (count < 30);
+  } while (count < MAX_INPUT);
+  arr = realloc(arr, sizeof(char *) * count);
+  data->valeurs.str_array = arr;
   return count;
 }
+int read_num(json_msg *json) {
+  /*
+    uint count = 0;
+    char tmp_str[MAX_INPUT];
+    data = malloc(MAX_INPUT * sizeof(char *));
+    do {
+      memset(tmp_str, 0, sizeof(tmp_str));
+      printf("Votre input n°%d (& pour arreter la saisie): ", count + 1);
+      if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
+        perror("erreur scan utilisateur");
+        return (EXIT_FAILURE);
+      }
+      tmp_str[strlen(tmp_str) - 1] = '\0';
+      // use void* to polymorph
+      int format = (tmp_str);
+      if (format == 0) {
+        data[count] = malloc(strlen(tmp_str) + 1);
+        memcpy(data[count], tmp_str, strlen(tmp_str) + 1);
+        count++;
+      } else if (strcmp(tmp_str, "&") == 0) {
+        printf("\nFin de la saisie\n");
+        break;
+      } else {
+        printf("Erreur format\n");
+      }
+    } while (count < MAX_INPUT);
+    return count;*/
+}
+
 int main(int argc, char **argv) {
   int socketfd;
 
