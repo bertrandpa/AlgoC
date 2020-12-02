@@ -68,25 +68,21 @@ int recois_envoie_message(int client_socket_fd) {
    * ou un autre mot.
    *
    */
+  json_reponse->valeurs.str_array = malloc(sizeof(char *));
   // Si le message commence par le mot: 'message:'
   if (strcmp(json_data->code, "message") == 0) {
     // Init array
-    json_reponse->valeurs.str_array = malloc(sizeof(char *));
     renvoie_message(json_data, json_reponse);
   } else if (strcmp(json_data->code, "nom") == 0) {
-    json_reponse->valeurs.str_array = malloc(sizeof(char *));
     renvoie_nom(json_data, json_reponse);
 
-  } /*  else if (strcmp(json_data->code, "calcule") == 0) {
-     recois_numeros_calcule(json_data, json_reponse);
+  } else if (strcmp(json_data->code, "calcule") == 0) {
+    recois_numeros_calcule(json_data, json_reponse);
 
-   }*/
-  else if (strcmp(json_data->code, "couleurs") == 0) {
-    json_reponse->valeurs.str_array = malloc(sizeof(char *));
+  } else if (strcmp(json_data->code, "couleurs") == 0) {
     recois_couleurs(json_data, json_reponse);
 
   } else if (strcmp(json_data->code, "balises") == 0) {
-    json_reponse->valeurs.str_array = malloc(sizeof(char *));
     recois_balises(json_data, json_reponse);
   }
 
@@ -186,42 +182,54 @@ int renvoie_nom(json_msg *data, json_msg *reponse) {
   return 0;
 }
 
+double add(double *operands, unsigned int size) {
+  double acc = 0;
+  for (size_t i = 0; i < size; i++) {
+    acc += operands[i];
+  }
+  return acc;
+}
+double sub(double *operands, unsigned int size) {
+  return operands[0] - operands[1];
+}
+double mul(double *operands, unsigned int size) {
+  double acc = 1;
+  for (size_t i = 0; i < size; i++) {
+    acc *= operands[i];
+  }
+  return acc;
+}
+// check avant ou ici ?
+double divide(double *operands, unsigned int size) {
+  return (operands[0] / operands[1]);
+}
+double min(double *operands, unsigned int size) { return 0; }
+double max(double *operands, unsigned int size) { return 0; }
+double avg(double *operands, unsigned int size) { return 0; }
+double avg_diff(double *operands, unsigned int size) { return 0; }
 int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
-  /*
-    char code[10], *operateur = data->valeurs[0], erreur[50];
 
-    memset(code, 0, sizeof(code));
-    memset(erreur, 0, sizeof(erreur));
-    double operande1, operande2, result;
-    operande1 = atof(data->valeurs[1]);
-    operande2 = atof(data->valeurs[2]);
-    result = 0.0;
-    printf("opera : %s, op1 %f, ope2 %f\n", operateur, operande1, operande2);
-    // TODO remove float trailing zeros,
-    // or do it only at printing/loading to file ?
+  double *nums = data->valeurs.double_values->num_array;
+  char *ope = data->valeurs.double_values->operateur;
+  double res;
+  size_t len = 8;
+  double (*fonctions[8])(double *, unsigned int) = {add, sub, mul, divide,
+                                                    min, max, avg, avg_diff};
+  char tmp[10];
+  sprintf("\"%s\"", ope);
+  for (size_t i = 0; i < len; i++) {
+    if (strcmp(tmp, operateurs[i]) == 0) {
+      res = fonctions[i](nums, data->size);
+      break;
+    }
+  }
+  // if erreur set
+  char *rep_str;
+  sprintf(rep_str, "%lf", res);
+  reponse->size = 1;
+  reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(rep_str) + 1));
+  memcpy(reponse->valeurs.str_array[0], rep_str, strlen(rep_str) + 1);
 
-    // Change to handle several operation
-    if (operande1 != 0.0 && strcmp(data->valeurs[2], "END") != 0) {
-      if (strcmp(operateur, "+") == 0)
-        result = operande1 + operande2;
-      else if (strcmp(operateur, "-") == 0)
-        result = operande1 - operande2;
-      else if (strcmp(operateur, "*") == 0)
-        result = operande1 * operande2;
-      else if (strcmp(operateur, "/") == 0) {
-        if (operande2 == 0)
-          strcpy(erreur, "erreur division par zéro");
-        else
-          result = operande1 / operande2;
-      } else
-        strcpy(erreur, "erreur opération inconnue");
-    } else
-      strcpy(erreur, "erreur format données");
-    if (strlen(erreur) != 0)
-      strcpy(reponse->valeurs[0], erreur);
-    else
-      sprintf(reponse->valeurs[0], "%f", result);
-      */
   return 0;
 }
 

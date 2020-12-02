@@ -64,13 +64,13 @@ int envoie_recois_message(int socketfd, char *pathname) {
       delete_json(json);
       return (EXIT_SUCCESS);
     }
-    break; /*
-   case 3:
-     memcpy(json.code, "calcule", 9);
-     if (envoie_operateur_numeros( &json)) {
-       return (EXIT_SUCCESS);
-     }
-     break;*/
+    break;
+  case 3:
+    memcpy(json->code, "calcule", 9);
+    if (envoie_operateur_numeros(json)) {
+      return (EXIT_SUCCESS);
+    }
+    break;
   case 4:
     memcpy(json->code, "couleurs", 10);
     if (envoie_couleurs(json, pathname)) {
@@ -150,29 +150,33 @@ int envoie_nom_de_client(json_msg *data) {
 
 int envoie_operateur_numeros(json_msg *data) {
   // Demandez à l'utilisateur d'entrer un message
-  char calcule[1000];
-  memset(calcule, 0, sizeof(calcule));
+  char calcul[100];
+  memset(calcul, 0, sizeof(calcul));
+
   // TODO use read_input for task4
-  printf("Votre calcule infixe (max 1000 caracteres): ");
-  if (fgets(calcule, sizeof(calcule), stdin) == NULL) {
+
+  printf("Votre calcule infixe (max 100 caracteres): ");
+  if (fgets(calcul, sizeof(calcul), stdin) == NULL) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-  // TODO analsye data
   char operateur[10], spare[10];
   double operand1, operand2;
   int nbread =
-      sscanf(calcule, "%s %lf %lf %s", operateur, &operand1, &operand2, spare);
+      sscanf(calcul, "%s %lf %lf %s", operateur, &operand1, &operand2, spare);
   if (nbread < 2 || strlen(spare) != 0) {
     perror("Erreur format");
     return (EXIT_FAILURE);
   }
-  /* calcule[strlen(calcule) - 1] = '\0';
-  strcpy(data->valeurs[0], operateur);
-  sprintf(data->valeurs[1], "%f", operand1);
-  sprintf(data->valeurs[2], "%f", operand2);
-  strcpy(data->valeurs[3], "END\0"); */
-
+  printf("ui\n");
+  calcule *calc = malloc(sizeof(calcule));
+  calc->num_array = malloc(sizeof(double) * 2);
+  calc->operateur = malloc(sizeof(char *) * strlen(operateur) + 1);
+  memcpy(calc->operateur, operateur, strlen(operateur));
+  calc->num_array[strlen(operateur)] = '\0';
+  calc->num_array[0] = operand1;
+  calc->num_array[1] = operand2;
+  data->valeurs.double_values = calc;
   return 0;
 }
 
@@ -238,26 +242,6 @@ int envoie_balises(json_msg *data) {
   printf("size read : %ld\n", sizeof(data->valeurs.str_array));
   if (data->valeurs.str_array == NULL)
     return (EXIT_FAILURE);
-  return 0;
-}
-
-// TODO déplacer dans json
-int iscouleurs(char *couleur) {
-  uint32_t hexa_color;
-  if (sscanf(couleur, "%x", &hexa_color) == 1) {
-    // test 6 digit hexa
-    if (strlen(couleur) == 6) {
-      return 0;
-    }
-  }
-  return 1;
-}
-// TODO déplacer dans json
-int isbalises(char *balise) {
-  for (size_t i = 0; i < strlen(balise); i++) {
-    if (!isalpha(balise[i]))
-      return 1;
-  }
   return 0;
 }
 
