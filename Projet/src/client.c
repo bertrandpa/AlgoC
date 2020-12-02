@@ -168,15 +168,17 @@ int envoie_operateur_numeros(json_msg *data) {
     perror("Erreur format");
     return (EXIT_FAILURE);
   }
-  printf("ui\n");
   calcule *calc = malloc(sizeof(calcule));
   calc->num_array = malloc(sizeof(double) * 2);
   calc->operateur = malloc(sizeof(char *) * strlen(operateur) + 1);
   memcpy(calc->operateur, operateur, strlen(operateur));
+
   calc->num_array[strlen(operateur)] = '\0';
   calc->num_array[0] = operand1;
   calc->num_array[1] = operand2;
+
   data->valeurs.double_values = calc;
+  data->size = 2;
   return 0;
 }
 

@@ -57,15 +57,20 @@ int recois_envoie_message(int client_socket_fd) {
   printf("Message recu: \n%s\n", data);
   // TODO parse msg
   strncpy(savedata, data, sizeof(data));
-  parse_json(savedata, json_data);
+  if (parse_json(savedata, json_data)) {
+    close(client_socket_fd);
+    delete_json(json_data);
+    delete_json(json_reponse);
+    return EXIT_FAILURE;
+  }
   strcpy(json_reponse->code, json_data->code);
   // fix
   printf("code = %s\n", json_data->code);
 
   /*
    * extraire le code des données envoyées par le client.
-   * Les données envoyées par le client peuvent commencer par le mot "message :"
-   * ou un autre mot.
+   * Les données envoyées par le client peuvent commencer par le mot "message
+   * :" ou un autre mot.
    *
    */
   json_reponse->valeurs.str_array = malloc(sizeof(char *));
@@ -224,7 +229,7 @@ int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
     }
   }
   // if erreur set
-  char *rep_str;
+  char rep_str[100];
   sprintf(rep_str, "%lf", res);
   reponse->size = 1;
   reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(rep_str) + 1));
