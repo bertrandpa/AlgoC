@@ -206,7 +206,6 @@ int parse_json(char *string_json, json_msg *json) {
       return EXIT_FAILURE;
     }
     if (code == 3) {
-      array = realloc(array, i * sizeof(double));
       json->valeurs.double_values->num_array = array;
     } else {
       strings[i] = malloc(sizeof(char *) * strlen(token_array) - 1);
@@ -259,12 +258,15 @@ void append_calcule(char *string, json_msg *json) {
     remove_zeros(tmpstr);
     printf("zeros out : %s\n", tmpstr);
     sprintf(tmp2str, " %s,", tmpstr);
+    printf("str2 : %s\n", tmp2str);
     strcat(string, tmp2str);
   }
+  memset(tmpstr, 0, sizeof(tmpstr));
+  memset(tmp2str, 0, sizeof(tmp2str));
   sprintf(tmpstr, "%f", arr[i]);
   remove_zeros(tmpstr);
   sprintf(tmp2str, " %s ", tmpstr);
-  strcat(string, tmpstr);
+  strcat(string, tmp2str);
 }
 
 // Met en forme
