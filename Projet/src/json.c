@@ -20,13 +20,6 @@ int isbalises(char *balise) {
   return 0;
 }
 
-int isoperateur(char *operateur) {
-  for (size_t i = 0; i < sizeof(operateurs) / sizeof(*operateurs); i++) {
-    if (strcmp(operateur, operateurs[i]) == 0)
-      return 0;
-  }
-  return 1;
-}
 int iscode(char *code) {
   for (size_t i = 0; i < sizeof(codes) / sizeof(*codes); i++) {
     if (strcmp(code, codes[i]) == 0)
@@ -56,6 +49,18 @@ int ismessage(char *message) {
       return 1;
   }
   return 0;
+}
+int isoperateur(char *operateur) {
+  if (isquoted(operateur))
+    return 1;
+  operateur++;
+  operateur[strlen(operateur) - 1] = '\0';
+  for (size_t i = 0; i < sizeof(operateurs) / sizeof(*operateurs); i++) {
+    printf("op[%ld] : %s\n", i, operateurs[i]);
+    if (strcmp(operateur, operateurs[i]) == 0)
+      return 0;
+  }
+  return 1;
 }
 
 int is_str_balises(char *strbalise) {
@@ -107,14 +112,14 @@ char *trim(char *src) {
 int parse_json(char *string_json, json_msg *json) {
 
   char *saveptr = NULL, *saveptr_array = NULL;
-
+  // get trimmed json
   char *tstr = trim(string_json);
   printf("trimmed : %s\n", tstr);
   // isolé "code":"code_value"
   char *token = strtok_r(tstr, ",", &saveptr);
   printf("token : %s\nsaveptr : %s\n", token, saveptr);
 
-  // isolé "code_value"
+  // isolate and compare header
   char *subtoken = strtok_r(NULL, ":", &token);
   printf("subtoken : %s\ntoken : %s\n", subtoken, token);
   if (strcmp(subtoken, "{\"code\"") != 0) {
@@ -122,6 +127,7 @@ int parse_json(char *string_json, json_msg *json) {
     free(tstr);
     return EXIT_FAILURE;
   }
+  // check code value
   int code = iscode(token);
   if (!code) {
     perror("erreur mauvais code");
@@ -131,7 +137,6 @@ int parse_json(char *string_json, json_msg *json) {
   strncpy(json->code, token + 1, strlen(token) - 2);
   json->code[strlen(token) - 1] = '\0';
   printf("code : %s\n", json->code);
-  // isolé "valeurs_value"
 
   token = strtok_r(NULL, ":", &saveptr);
   printf("token : %s\nsaveptr : %s\n", token, saveptr);
@@ -140,6 +145,7 @@ int parse_json(char *string_json, json_msg *json) {
     free(tstr);
     return EXIT_FAILURE;
   }
+  // check json footer
   if (saveptr[0] != '[' && saveptr[strlen(saveptr) - 2] != ']' &&
       saveptr[strlen(saveptr) - 1] != '}') {
     perror("erreur format json 3");
@@ -155,30 +161,25 @@ int parse_json(char *string_json, json_msg *json) {
   char *token_array = strtok_r(valeurs, ",", &saveptr_array);
   printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
 
+  // prepare array parse
   int pad = 1, hashtag = 0, tmp_size = 0;
-  double *array;
-  char **strings;
+  double *array = NULL;
+  char **strings = NULL, *ope = NULL;
   int (*test)(char *);
   if (code > 2) {
+    // check first array element
     if (code == 3) {
-      if (isquoted(token_array)) {
-        token_array++;
-        token_array[strlen(token_array) - 1] = '\0';
-        if (isoperateur(token_array)) {
-          perror("erreur format operateur");
-          free(tstr);
-          return EXIT_FAILURE;
-        }
-        char *ope = malloc(sizeof(char) * strlen(token_array));
+      if (isoperateur(token_array)) {
+        perror("erreur format operateur");
+        free(tstr);
+        return EXIT_FAILURE;
+      } else {
+        ope = malloc(sizeof(char) * strlen(token_array));
         memcpy(ope, token_array + 1, strlen(token_array) - 1);
         ope[strlen(token_array) - 1] = '\0';
         array = malloc(sizeof(double) * MAX_INPUT);
         test = isnumber;
         pad = 0;
-      } else {
-        perror("erreur format array");
-        free(tstr);
-        return EXIT_FAILURE;
       }
     } else {
       tmp_size = atoi(token_array);
@@ -199,20 +200,23 @@ int parse_json(char *string_json, json_msg *json) {
     test = curry(code);
     strings = malloc(sizeof(char *) * MAX_INPUT);
   }
+  // parse array
   while (token_array != NULL) {
+    printf("token [%d] : %s\n", i, token_array);
     if (test(token_array)) {
       perror("erreur format data 1");
       free(tstr);
       return EXIT_FAILURE;
     }
     if (code == 3) {
-      json->valeurs.double_values->num_array = array;
+      array[i] = atof(token_array);
+      printf("array [%d] : %lf\n", i, array[i]);
+
     } else {
       strings[i] = malloc(sizeof(char *) * strlen(token_array) - 1);
       memcpy(strings[i], token_array + 1, strlen(token_array) - 1);
+      printf("string [%d] : %s\n", i, strings[i]);
     }
-
-    printf("token [%d] : %s\n", i, token_array);
 
     token_array = strtok_r(NULL, ",", &saveptr_array);
     ++i;
@@ -225,7 +229,9 @@ int parse_json(char *string_json, json_msg *json) {
   json->size = i;
   if (code == 3) {
     array = realloc(array, i * sizeof(double));
+    json->valeurs.double_values = malloc(sizeof(calcule));
     json->valeurs.double_values->num_array = array;
+    json->valeurs.double_values->operateur = ope;
   } else {
     strings = realloc(strings, i * sizeof(char *));
     json->valeurs.str_array = strings;
@@ -242,15 +248,16 @@ void remove_zeros(char *str_double) {
   }
 }
 
-void append_calcule(char *string, json_msg *json) {
+void append_calcule_array(char *string, json_msg *json) {
   double *arr = json->valeurs.double_values->num_array;
   char *ope = json->valeurs.double_values->operateur;
-  printf("op : %s, arr[0] : %lf\n", ope, arr[0]);
   char tmpstr[50], tmp2str[53];
-
+  if (ope != NULL) {
+    printf("op : %s, arr[0] : %lf\n", ope, arr[0]);
+    sprintf(tmpstr, " \"%s\",", ope);
+    strcat(string, tmpstr);
+  }
   size_t i = 0;
-  sprintf(tmpstr, " \"%s\",", ope);
-  strcat(string, tmpstr);
   for (i = 0; i < json->size - 1; i++) {
     memset(tmpstr, 0, sizeof(tmpstr));
     memset(tmp2str, 0, sizeof(tmp2str));
@@ -270,16 +277,17 @@ void append_calcule(char *string, json_msg *json) {
 }
 
 // Met en forme
+// TODO si envoie ou si rep
 int to_json(char *string, json_msg *json) {
   sprintf(string, "{\n\t\"code\" : \"%s\",\n\t\"valeurs\" : [", json->code);
   printf("%s\n", string);
   if (strcmp(json->code, "calcule") == 0) {
     printf("aui\n");
-    append_calcule(string, json);
+    append_calcule_array(string, json);
   } else {
     char tmpstr[2048];
     char **arr = json->valeurs.str_array;
-    if (json->size > 1 && (strcmp(json->code, "couleurs") == 0 ||
+    if (json->size > 0 && (strcmp(json->code, "couleurs") == 0 ||
                            strcmp(json->code, "balises") == 0)) {
       memset(tmpstr, 0, sizeof(tmpstr));
       sprintf(tmpstr, " %d,", json->size);

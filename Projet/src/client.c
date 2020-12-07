@@ -160,7 +160,7 @@ int envoie_operateur_numeros(json_msg *data) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-  char operateur[10], spare[10];
+  char operateur[10], spare[10] = {0};
   double operand1, operand2;
   int nbread =
       sscanf(calcul, "%s %lf %lf %s", operateur, &operand1, &operand2, spare);
@@ -210,6 +210,8 @@ char **analyse(char *pathname, int nbcouleurs) {
     memcpy(couleurs[count], temp_string, strlen(temp_string) + 1);
     printf(" %s )\n", couleurs[count]);
   }
+  delete_couleur_car_pas_fait_initialement_mmmh_bizzare_sachant_que_ca_cree_quand_meme_beaucoup_de_fuites_memoire(
+      cc);
   return couleurs;
 }
 

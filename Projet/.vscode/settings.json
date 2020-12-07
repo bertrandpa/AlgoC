@@ -21,7 +21,18 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "variant": "c"
+        "variant": "c",
+        "hash_map": "c",
+        "hash_set": "c",
+        "initializer_list": "c",
+        "chrono": "c",
+        "random": "c",
+        "limits": "c",
+        "valarray": "c",
+        "cstdlib": "c",
+        "cinttypes": "c",
+        "cmath": "c",
+        "complex": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

@@ -20,7 +20,7 @@ couleur_compteur *compte_couleur(couleur *c, int csize) {
 
   if (c->compte_bit == BITS24) {
     bc = BITS24;
-    compteur = calloc(1, sizeof(couleur_compteur));
+    compteur = malloc(sizeof(couleur_compteur));
     if (compteur == NULL) {
       perror("Erreur: allocation dynamique de memoire\n");
       return NULL;
@@ -33,7 +33,7 @@ couleur_compteur *compte_couleur(couleur *c, int csize) {
     }
   } else if (c->compte_bit == BITS32) {
     bc = BITS32;
-    compteur = calloc(1, sizeof(couleur_compteur));
+    compteur = malloc(sizeof(couleur_compteur));
     if (compteur == NULL) {
       perror("Erreur: allocation dynamique de memoire\n");
       return NULL;
@@ -95,7 +95,11 @@ couleur_compteur *compte_couleur(couleur *c, int csize) {
       }
     }
   }
-
+  // Pas si facile
+  if (c->compte_bit == BITS24)
+    free(c->c.c24);
+  if (c->compte_bit == BITS32)
+    free(c->c.c32);
   compteur->size = compteur_size;
 
   hdestroy();
@@ -174,4 +178,14 @@ void trier_couleur_compteur(couleur_compteur *ccompteur) {
     qsort_r(ccompteur->cc.cc32, ccompteur->size, sizeof(couleur32_compteur),
             compare_compteur, (void *)&bc);
   }
+}
+
+void delete_couleur_car_pas_fait_initialement_mmmh_bizzare_sachant_que_ca_cree_quand_meme_beaucoup_de_fuites_memoire(
+    couleur_compteur *ccpt) {
+  if (ccpt->compte_bit == BITS24) {
+    free(ccpt->cc.cc24);
+  } else if (ccpt->compte_bit == BITS32) {
+    free(ccpt->cc.cc32);
+  }
+  free(ccpt);
 }

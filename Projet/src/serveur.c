@@ -74,25 +74,30 @@ int recois_envoie_message(int client_socket_fd) {
    *
    */
   json_reponse->valeurs.str_array = malloc(sizeof(char *));
+  int exit_status;
   // Si le message commence par le mot: 'message:'
   if (strcmp(json_data->code, "message") == 0) {
     // Init array
-    renvoie_message(json_data, json_reponse);
+    exit_status = renvoie_message(json_data, json_reponse);
   } else if (strcmp(json_data->code, "nom") == 0) {
     renvoie_nom(json_data, json_reponse);
 
   } else if (strcmp(json_data->code, "calcule") == 0) {
-    recois_numeros_calcule(json_data, json_reponse);
+    exit_status = recois_numeros_calcule(json_data, json_reponse);
 
   } else if (strcmp(json_data->code, "couleurs") == 0) {
-    recois_couleurs(json_data, json_reponse);
+    exit_status = recois_couleurs(json_data, json_reponse);
 
   } else if (strcmp(json_data->code, "balises") == 0) {
-    recois_balises(json_data, json_reponse);
+    exit_status = recois_balises(json_data, json_reponse);
   }
 
   // strcpy(json_reponse.valeurs[1], "END\0");
-
+  if (exit_status) {
+    delete_json(json_data);
+    delete_json(json_reponse);
+    return EXIT_FAILURE;
+  }
   to_json(reponse, json_reponse);
   printf("after json");
   // fix me, pb allocation ?
@@ -187,53 +192,89 @@ int renvoie_nom(json_msg *data, json_msg *reponse) {
   return 0;
 }
 
-double add(double *operands, unsigned int size) {
-  double acc = 0;
-  for (size_t i = 0; i < size; i++) {
-    acc += operands[i];
+double calcul(double(fct)(double, double), double *operands,
+              unsigned int size) {
+  double acc = operands[0];
+  for (size_t i = 1; i < size; i++) {
+    acc = fct(acc, operands[i]);
   }
   return acc;
 }
-double sub(double *operands, unsigned int size) {
-  return operands[0] - operands[1];
-}
-double mul(double *operands, unsigned int size) {
-  double acc = 1;
-  for (size_t i = 0; i < size; i++) {
-    acc *= operands[i];
-  }
-  return acc;
-}
+
+double add(double operand1, double operand2) { return operand1 + operand2; }
+double sub(double operand1, double operand2) { return operand1 - operand2; }
+double mul(double operand1, double operand2) { return operand1 * operand2; }
 // check avant ou ici ?
-double divide(double *operands, unsigned int size) {
-  return (operands[0] / operands[1]);
+double divide(double operand1, double operand2) {
+  if (operand2 == 0.0) {
+    // Ne peut pas normalement arriver ici
+    perror("Erreur division par zero\n");
+    return EXIT_FAILURE;
+  } else {
+    return operand1 / operand2;
+  }
 }
-double min(double *operands, unsigned int size) { return 0; }
-double max(double *operands, unsigned int size) { return 0; }
-double avg(double *operands, unsigned int size) { return 0; }
-double avg_diff(double *operands, unsigned int size) { return 0; }
+double min(double operand1, double operand2) {
+  return operand1 <= operand2 ? operand1 : operand2;
+}
+double max(double operand1, double operand2) {
+  return operand1 >= operand2 ? operand1 : operand2;
+}
+double avg(double *operands, unsigned int size) {
+  return divide(calcul(add, operands, size), size);
+}
+double absl(double d) { return (d < 0) ? -d : d; }
+double sqrt(double x) {
+  double prec = 0.00001;
+  double acc = 1.0;
+  while (absl(acc * acc - x) >= prec) {
+    acc = (x / acc + acc) / 2.0;
+  }
+  return acc;
+}
+
+double avg_diff_sqrt(double *operands, unsigned int size) {
+  double xavg = avg(operands, size);
+  double diffs[size - 1];
+  for (size_t i = 0; i < size; i++) {
+    double s = sub(xavg, operands[i]);
+    diffs[i] = divide(s * s, size);
+  }
+  double var = calcul(add, diffs, size);
+  return sqrt(var);
+}
+
 int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
+  for (size_t i = 0; i < data->size; i++) {
+    printf("%lf  |  ", data->valeurs.double_values->num_array[i]);
+  }
+  printf("\n");
 
   double *nums = data->valeurs.double_values->num_array;
   char *ope = data->valeurs.double_values->operateur;
   double res;
-  size_t len = 8;
-  double (*fonctions[8])(double *, unsigned int) = {add, sub, mul, divide,
-                                                    min, max, avg, avg_diff};
-  char tmp[10];
-  sprintf("\"%s\"", ope);
-  for (size_t i = 0; i < len; i++) {
-    if (strcmp(tmp, operateurs[i]) == 0) {
-      res = fonctions[i](nums, data->size);
+  size_t len = 8, i, ope_code;
+  double (*basic_fct[6])(double, double) = {add, sub, mul, divide, min, max};
+  double (*fct[2])(double *, unsigned int) = {avg, avg_diff_sqrt};
+  for (i = 0; i < len; i++) {
+    if (strcmp(ope, operateurs[i]) == 0) {
+      ope_code = i;
       break;
     }
   }
-  // if erreur set
-  char rep_str[100];
-  sprintf(rep_str, "%lf", res);
+  if (i == 8) {
+    perror("Erreur operateur");
+    return EXIT_FAILURE;
+  }
+  res =
+      i < 6 ? calcul(basic_fct[i], nums, data->size) : fct[i](nums, data->size);
+  // set error if failed ? or implicitly checked before, correct format
+  printf("res : %lf\n", res);
   reponse->size = 1;
-  reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(rep_str) + 1));
-  memcpy(reponse->valeurs.str_array[0], rep_str, strlen(rep_str) + 1);
+  reponse->valeurs.double_values = malloc(sizeof(calcule));
+  reponse->valeurs.double_values->num_array = malloc(sizeof(double));
+  reponse->valeurs.double_values->operateur = NULL;
+  reponse->valeurs.double_values->num_array[0] = res;
 
   return 0;
 }

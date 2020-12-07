@@ -25,9 +25,8 @@ typedef struct {
 
 static const char codes[][12] = {"\"message\"\0", "\"nom\"\0", "\"calcule\"\0",
                                  "\"couleurs\"\0", "\"balises\"\0"};
-static const char operateurs[][6] = {"\"+\"\0",   "\"-\"\0",   "\"*\"\0",
-                                     "\"/\"\0",   "\"min\"\0", "\"max\"\0",
-                                     "\"avg\"\0", "\"ect\"\0"};
+static const char operateurs[][6] = {"+\0",   "-\0",   "*\0",   "/\0",
+                                     "min\0", "max\0", "avg\0", "ect\0"};
 
 int iscouleurs(char *couleur);
 int isbalises(char *balise);
