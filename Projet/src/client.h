@@ -28,5 +28,6 @@ int envoie_operateur_numeros(json_msg *data);
 int envoie_couleurs(json_msg *data, char *pathname);
 int envoie_balises(json_msg *data);
 int read_string(json_msg *data, int (*test)(char *));
+int read_number(json_msg *data, unsigned int max_size);
 
 #endif

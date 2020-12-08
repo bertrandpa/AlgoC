@@ -52,7 +52,7 @@ int envoie_recois_message(int socketfd, char *pathname) {
     // set le char valeurs dans la structure
     if (envoie_message(json)) {
       delete_json(json);
-      return (EXIT_SUCCESS);
+      return (EXIT_FAILURE);
     }
     break;
   case 2:
@@ -62,32 +62,32 @@ int envoie_recois_message(int socketfd, char *pathname) {
     printf("after allocation\n");
     if (envoie_nom_de_client(json)) {
       delete_json(json);
-      return (EXIT_SUCCESS);
+      return (EXIT_FAILURE);
     }
     break;
   case 3:
     memcpy(json->code, "calcule", 9);
     if (envoie_operateur_numeros(json)) {
-      return (EXIT_SUCCESS);
+      return (EXIT_FAILURE);
     }
     break;
   case 4:
     memcpy(json->code, "couleurs", 10);
     if (envoie_couleurs(json, pathname)) {
       delete_json(json);
-      return (EXIT_SUCCESS);
+      return (EXIT_FAILURE);
     }
     break;
   case 5:
     memcpy(json->code, "balises", 9);
     if (envoie_balises(json)) {
       delete_json(json);
-      return (EXIT_SUCCESS);
+      return (EXIT_FAILURE);
     }
     break;
   default:
     delete_json(json);
-    return (EXIT_SUCCESS);
+    return (EXIT_FAILURE);
   }
   // utilise la structure pour convertir
   // les info en JSON et envoyer au serveur
@@ -98,7 +98,6 @@ int envoie_recois_message(int socketfd, char *pathname) {
 
   int write_status = write(socketfd, json_string, strlen(json_string));
   printf("\n[send] %s\n", json_string);
-  printf("arr bef del : %s\n", json->valeurs.str_array[0]);
   delete_json(json);
   if (write_status <= 0) {
     perror("erreur ecriture");
@@ -149,36 +148,27 @@ int envoie_nom_de_client(json_msg *data) {
 }
 
 int envoie_operateur_numeros(json_msg *data) {
-  // Demandez à l'utilisateur d'entrer un message
-  char calcul[100];
-  memset(calcul, 0, sizeof(calcul));
-
-  // TODO use read_input for task4
-
-  printf("Votre calcule infixe (max 100 caracteres): ");
-  if (fgets(calcul, sizeof(calcul), stdin) == NULL) {
+  char ope[20];
+  memset(ope, 0, sizeof(ope));
+  printf("Votre opération (%s, %s, %s, %s, %s, %s, %s, %s): ", operateurs[0],
+         operateurs[1], operateurs[2], operateurs[3], operateurs[4],
+         operateurs[5], operateurs[6], operateurs[7]);
+  if (fgets(ope, sizeof(ope), stdin) == NULL) {
     perror("erreur scan utilisateur");
     return (EXIT_FAILURE);
   }
-  char operateur[10], spare[10] = {0};
-  double operand1, operand2;
-  int nbread =
-      sscanf(calcul, "%s %lf %lf %s", operateur, &operand1, &operand2, spare);
-  if (nbread < 2 || strlen(spare) != 0) {
-    perror("Erreur format");
+  ope[strlen(ope) - 1] = '\0';
+  int ope_code = isoperateur(ope);
+  if (!ope_code) {
+    perror("erreur format operateur");
     return (EXIT_FAILURE);
   }
+  int max_size_array = ope_code < 5 ? 2 : MAX_INPUT;
   calcule *calc = malloc(sizeof(calcule));
-  calc->num_array = malloc(sizeof(double) * 2);
-  calc->operateur = malloc(sizeof(char *) * strlen(operateur) + 1);
-  memcpy(calc->operateur, operateur, strlen(operateur));
-
-  calc->num_array[strlen(operateur)] = '\0';
-  calc->num_array[0] = operand1;
-  calc->num_array[1] = operand2;
-
+  calc->operateur = malloc(sizeof(char) * (strlen(ope) + 1));
+  memcpy(calc->operateur, ope, strlen(ope) + 1);
   data->valeurs.double_values = calc;
-  data->size = 2;
+  data->size = read_number(data, max_size_array);
   return 0;
 }
 
@@ -210,8 +200,8 @@ char **analyse(char *pathname, int nbcouleurs) {
     memcpy(couleurs[count], temp_string, strlen(temp_string) + 1);
     printf(" %s )\n", couleurs[count]);
   }
-  delete_couleur_car_pas_fait_initialement_mmmh_bizzare_sachant_que_ca_cree_quand_meme_beaucoup_de_fuites_memoire(
-      cc);
+  // Pour éviter plus d'1Mo de fuite mémoire non géré initialement
+  delete_couleur_compteur(cc);
   return couleurs;
 }
 
@@ -219,7 +209,6 @@ int envoie_couleurs(json_msg *data, char *pathname) {
   char couleurs[1000];
   memset(couleurs, 0, sizeof(couleurs));
   uint nbcouleurs = 0;
-  // char c_nbcouleurs[20];
   if (pathname != NULL) {
     do {
       printf("Votre nombre de couleurs à envoyer (<30): ");
@@ -231,13 +220,10 @@ int envoie_couleurs(json_msg *data, char *pathname) {
     data->valeurs.str_array = arr;
 
   } else {
-    // TODO fix
     data->size = read_string(data, iscouleurs);
   }
   if (data->valeurs.str_array == NULL)
     return (EXIT_FAILURE);
-  /* strcpy(data->valeurs[nbcouleurs + 1], "END\0");
-  sprintf(data->valeurs[0], "%u", nbcouleurs); */
   return 0;
 }
 
@@ -249,7 +235,6 @@ int envoie_balises(json_msg *data) {
   return 0;
 }
 
-// TODO only take array arg
 int read_string(json_msg *data, int(test)(char *)) {
   uint count = 0;
   char tmp_str[50];
@@ -266,8 +251,8 @@ int read_string(json_msg *data, int(test)(char *)) {
     if (format == 0) {
       arr[count] = malloc(strlen(tmp_str) + 2);
       sprintf(arr[count], "#%s", tmp_str);
-      printf("arr[%d] = %s, size : %ld\n", count, arr[count],
-             strlen(arr[count]));
+      // printf("arr[%d] = %s, size : %ld\n", count, arr[count],
+      // strlen(arr[count]));
       count++;
     } else if (strcmp(tmp_str, "&") == 0) {
       printf("\nFin de la saisie\n");
@@ -280,33 +265,34 @@ int read_string(json_msg *data, int(test)(char *)) {
   data->valeurs.str_array = arr;
   return count;
 }
-int read_num(json_msg *json) {
-  /*
-    uint count = 0;
-    char tmp_str[MAX_INPUT];
-    data = malloc(MAX_INPUT * sizeof(char *));
-    do {
-      memset(tmp_str, 0, sizeof(tmp_str));
-      printf("Votre input n°%d (& pour arreter la saisie): ", count + 1);
-      if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
-        perror("erreur scan utilisateur");
-        return (EXIT_FAILURE);
-      }
-      tmp_str[strlen(tmp_str) - 1] = '\0';
-      // use void* to polymorph
-      int format = (tmp_str);
-      if (format == 0) {
-        data[count] = malloc(strlen(tmp_str) + 1);
-        memcpy(data[count], tmp_str, strlen(tmp_str) + 1);
-        count++;
-      } else if (strcmp(tmp_str, "&") == 0) {
-        printf("\nFin de la saisie\n");
-        break;
-      } else {
-        printf("Erreur format\n");
-      }
-    } while (count < MAX_INPUT);
-    return count;*/
+int read_number(json_msg *data, unsigned int max_op) {
+
+  uint count = 0;
+  char tmp_str[50];
+  double *arr = malloc(max_op * sizeof(char *));
+  do {
+    memset(tmp_str, 0, sizeof(tmp_str));
+    printf("Votre input n°%d (& pour arreter la saisie): ", count + 1);
+    if (fgets(tmp_str, sizeof(tmp_str), stdin) == NULL) {
+      perror("erreur scan utilisateur");
+      return (EXIT_FAILURE);
+    }
+    tmp_str[strlen(tmp_str) - 1] = '\0';
+    int format = isnumber(tmp_str);
+    if (format == 0) {
+      arr[count] = atof(tmp_str);
+      // printf("arr[%d] = %lf\n", count, arr[count]);
+      count++;
+    } else if (strcmp(tmp_str, "&") == 0) {
+      printf("\nFin de la saisie\n");
+      break;
+    } else {
+      printf("Erreur format\n");
+    }
+  } while (count < max_op);
+  arr = realloc(arr, sizeof(double) * count);
+  data->valeurs.double_values->num_array = arr;
+  return count;
 }
 
 int main(int argc, char **argv) {

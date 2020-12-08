@@ -96,10 +96,10 @@ int recois_envoie_message(int client_socket_fd) {
   if (exit_status) {
     delete_json(json_data);
     delete_json(json_reponse);
+    close(client_socket_fd);
     return EXIT_FAILURE;
   }
   to_json(reponse, json_reponse);
-  printf("after json");
   // fix me, pb allocation ?
   delete_json(json_data);
   delete_json(json_reponse);
@@ -191,7 +191,8 @@ int renvoie_nom(json_msg *data, json_msg *reponse) {
   data->valeurs.str_array = NULL;
   return 0;
 }
-
+// Fonction abstraite qui parcours les données et
+// qui calcul le résultat cumulé de l'opération sur le set
 double calcul(double(fct)(double, double), double *operands,
               unsigned int size) {
   double acc = operands[0];
@@ -204,7 +205,6 @@ double calcul(double(fct)(double, double), double *operands,
 double add(double operand1, double operand2) { return operand1 + operand2; }
 double sub(double operand1, double operand2) { return operand1 - operand2; }
 double mul(double operand1, double operand2) { return operand1 * operand2; }
-// check avant ou ici ?
 double divide(double operand1, double operand2) {
   if (operand2 == 0.0) {
     // Ne peut pas normalement arriver ici
@@ -224,6 +224,7 @@ double avg(double *operands, unsigned int size) {
   return divide(calcul(add, operands, size), size);
 }
 double absl(double d) { return (d < 0) ? -d : d; }
+// Calcule de la racine avec la méthode de Newton
 double sqrt(double x) {
   double prec = 0.00001;
   double acc = 1.0;
@@ -235,12 +236,17 @@ double sqrt(double x) {
 
 double avg_diff_sqrt(double *operands, unsigned int size) {
   double xavg = avg(operands, size);
-  double diffs[size - 1];
+  double diffs[size];
   for (size_t i = 0; i < size; i++) {
+    // Distance à la moyenne
     double s = sub(xavg, operands[i]);
+    // Distance au carré divisé pas le total
     diffs[i] = divide(s * s, size);
   }
+  // Somme de ces distances moyennes (variance)
   double var = calcul(add, diffs, size);
+  printf("var = %lf\n", var);
+  // ecart-type
   return sqrt(var);
 }
 
@@ -249,16 +255,15 @@ int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
     printf("%lf  |  ", data->valeurs.double_values->num_array[i]);
   }
   printf("\n");
-
   double *nums = data->valeurs.double_values->num_array;
   char *ope = data->valeurs.double_values->operateur;
   double res;
-  size_t len = 8, i, ope_code;
+  size_t len = 8, i;
   double (*basic_fct[6])(double, double) = {add, sub, mul, divide, min, max};
   double (*fct[2])(double *, unsigned int) = {avg, avg_diff_sqrt};
   for (i = 0; i < len; i++) {
+    printf("op[%ld] : %s == %s ?\n", i, ope, operateurs[i]);
     if (strcmp(ope, operateurs[i]) == 0) {
-      ope_code = i;
       break;
     }
   }
@@ -266,8 +271,8 @@ int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
     perror("Erreur operateur");
     return EXIT_FAILURE;
   }
-  res =
-      i < 6 ? calcul(basic_fct[i], nums, data->size) : fct[i](nums, data->size);
+  res = i < 6 ? calcul(basic_fct[i], nums, data->size)
+              : fct[i - 6](nums, data->size);
   // set error if failed ? or implicitly checked before, correct format
   printf("res : %lf\n", res);
   reponse->size = 1;

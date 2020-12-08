@@ -76,6 +76,5 @@ void print_couleur_compteur(couleur_compteur *);
 // trier le compte de couleurs distincts
 void trier_couleur_compteur(couleur_compteur *);
 
-void delete_couleur_compteur_car_pas_fait_initialement_mmmh_bizzare_sachant_que_ca_cree_quand_meme_beaucoup_de_fuites_memoire(
-    couleur_compteur *);
+void delete_couleur_compteur(couleur_compteur *);
 #endif

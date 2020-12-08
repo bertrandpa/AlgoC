@@ -95,7 +95,7 @@ couleur_compteur *compte_couleur(couleur *c, int csize) {
       }
     }
   }
-  // Pas si facile
+  // Pour éviter 1Mo de fuite mémoire
   if (c->compte_bit == BITS24)
     free(c->c.c24);
   if (c->compte_bit == BITS32)
@@ -180,8 +180,7 @@ void trier_couleur_compteur(couleur_compteur *ccompteur) {
   }
 }
 
-void delete_couleur_car_pas_fait_initialement_mmmh_bizzare_sachant_que_ca_cree_quand_meme_beaucoup_de_fuites_memoire(
-    couleur_compteur *ccpt) {
+void delete_couleur_compteur(couleur_compteur *ccpt) {
   if (ccpt->compte_bit == BITS24) {
     free(ccpt->cc.cc24);
   } else if (ccpt->compte_bit == BITS32) {

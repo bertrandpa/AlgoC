@@ -1,6 +1,5 @@
 #include "json.h"
 
-// TODO
 int iscouleurs(char *couleur) {
   unsigned int hexa_color;
   if (sscanf(couleur, "%x", &hexa_color) == 1) {
@@ -51,16 +50,11 @@ int ismessage(char *message) {
   return 0;
 }
 int isoperateur(char *operateur) {
-  if (isquoted(operateur))
-    return 1;
-  operateur++;
-  operateur[strlen(operateur) - 1] = '\0';
   for (size_t i = 0; i < sizeof(operateurs) / sizeof(*operateurs); i++) {
-    printf("op[%ld] : %s\n", i, operateurs[i]);
     if (strcmp(operateur, operateurs[i]) == 0)
-      return 0;
+      return i + 1;
   }
-  return 1;
+  return 0;
 }
 
 int is_str_balises(char *strbalise) {
@@ -68,6 +62,7 @@ int is_str_balises(char *strbalise) {
     return 1;
   strbalise++;
   strbalise[strlen(strbalise) - 1] = '\0';
+  printf("balise cutted : %s\n", strbalise);
   return isbalises(strbalise + 1);
 }
 
@@ -80,7 +75,7 @@ int is_str_couleurs(char *strcouleur) {
   return iscouleurs(strcouleur + 1);
 }
 
-int (*curry(int code))(char *) {
+int (*str_code_test(int code))(char *) {
   if (code == 4) {
     return is_str_couleurs;
   } else if (code == 5) {
@@ -97,7 +92,6 @@ char *trim(char *src) {
   memset(tmpres, 0, sizeof(tmpres));
   char *delim = " \t\n";
   token = strtok_r(src, delim, &saveptr);
-  // Comportement indéterminé !!
   while (token != NULL) {
 
     strncat(tmpres, token, strlen(token));
@@ -162,42 +156,43 @@ int parse_json(char *string_json, json_msg *json) {
   printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
 
   // prepare array parse
-  int pad = 1, hashtag = 0, tmp_size = 0;
+  int pad = 1, tmp_size = 0;
   double *array = NULL;
   char **strings = NULL, *ope = NULL;
   int (*test)(char *);
   if (code > 2) {
     // check first array element
     if (code == 3) {
-      if (isoperateur(token_array)) {
+      if (!isquoted(token_array)) {
+        token_array++;
+        token_array[strlen(token_array) - 1] = '\0';
+      }
+      if (!isoperateur(token_array)) {
         perror("erreur format operateur");
         free(tstr);
         return EXIT_FAILURE;
       } else {
-        ope = malloc(sizeof(char) * strlen(token_array));
-        memcpy(ope, token_array + 1, strlen(token_array) - 1);
-        ope[strlen(token_array) - 1] = '\0';
+        ope = malloc(sizeof(char) * (strlen(token_array) + 1));
+        memcpy(ope, token_array, strlen(token_array));
+        ope[strlen(token_array)] = '\0';
         array = malloc(sizeof(double) * MAX_INPUT);
         test = isnumber;
         pad = 0;
       }
     } else {
       tmp_size = atoi(token_array);
-      if (tmp_size > 0) {
-        hashtag = 1;
-      } else {
+      if (tmp_size <= 0) {
         perror("erreur format array");
         free(tstr);
         return EXIT_FAILURE;
       }
     }
-
     token_array = strtok_r(NULL, ",", &saveptr_array);
     printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
   }
   if (pad) {
-    // TODO faire pour que test = curry(isValid)
-    test = curry(code);
+    // TODO faire pour que test = str_code_test(isValid)
+    test = str_code_test(code);
     strings = malloc(sizeof(char *) * MAX_INPUT);
   }
   // parse array
@@ -241,10 +236,10 @@ int parse_json(char *string_json, json_msg *json) {
 }
 
 void remove_zeros(char *str_double) {
-  for (size_t i = strlen(str_double) - 1; i > 1 && str_double[i - 1] != '.';
-       i--) {
-    if (str_double[i] == '0')
-      str_double[i] = '\0';
+  size_t i = strlen(str_double) - 1;
+  while (str_double[i] == '0' && i > 1 && str_double[i - 1] != '.') {
+    str_double[i] = '\0';
+    i--;
   }
 }
 
@@ -253,7 +248,6 @@ void append_calcule_array(char *string, json_msg *json) {
   char *ope = json->valeurs.double_values->operateur;
   char tmpstr[50], tmp2str[53];
   if (ope != NULL) {
-    printf("op : %s, arr[0] : %lf\n", ope, arr[0]);
     sprintf(tmpstr, " \"%s\",", ope);
     strcat(string, tmpstr);
   }
@@ -263,9 +257,7 @@ void append_calcule_array(char *string, json_msg *json) {
     memset(tmp2str, 0, sizeof(tmp2str));
     sprintf(tmpstr, "%f", arr[i]);
     remove_zeros(tmpstr);
-    printf("zeros out : %s\n", tmpstr);
     sprintf(tmp2str, " %s,", tmpstr);
-    printf("str2 : %s\n", tmp2str);
     strcat(string, tmp2str);
   }
   memset(tmpstr, 0, sizeof(tmpstr));
@@ -310,7 +302,7 @@ int to_json(char *string, json_msg *json) {
 }
 
 void delete_s(void *ptr, char *name) {
-  ptr != NULL ? free(ptr) : printf("cannot free %s\n", name);
+  ptr != NULL ? free(ptr) : printf("%s is NULL, cannot free\n", name);
 }
 
 void delete_json(json_msg *json) {
@@ -319,6 +311,7 @@ void delete_json(json_msg *json) {
       if (json->valeurs.double_values != NULL) {
         delete_s(json->valeurs.double_values->num_array, "num_array");
         delete_s(json->valeurs.double_values->operateur, "operateur");
+        delete_s(json->valeurs.double_values, "calcule struct");
       }
     } else {
       if (json->valeurs.str_array != NULL) {
