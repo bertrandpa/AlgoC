@@ -387,20 +387,20 @@ int main() {
       return (EXIT_FAILURE);
     }
     printf("[+]Client %d est connecté\n", client_socket_fd);
-    // thread ou fork ?
-    /* pid_t pid;
+    pid_t pid;
     if ((pid = fork()) < 0) {
       perror("fork");
       return (EXIT_FAILURE);
     } else if (pid == 0) {
       // child
+      // TODO threads
       recois_envoie_message(client_socket_fd);
+      return 0;
     } else {
       // parent
-      // TODO allouer tab taille fixe nb max child et wait avec lock + predicate
       continue;
-    } */
-    recois_envoie_message(client_socket_fd);
+    }
+    // recois_envoie_message(client_socket_fd);
     // Lire et répondre au client
   }
 

@@ -274,7 +274,6 @@ int to_json(char *string, json_msg *json) {
   sprintf(string, "{\n\t\"code\" : \"%s\",\n\t\"valeurs\" : [", json->code);
   printf("%s\n", string);
   if (strcmp(json->code, "calcule") == 0) {
-    printf("aui\n");
     append_calcule_array(string, json);
   } else {
     char tmpstr[2048];
