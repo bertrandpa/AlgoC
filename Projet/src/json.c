@@ -160,8 +160,9 @@ int parse_json(char *string_json, json_msg *json) {
   double *array = NULL;
   char **strings = NULL, *ope = NULL;
   int (*test)(char *);
+  // Si code autre que message et nom
   if (code > 2) {
-    // check first array element
+    // verification du format du premier element
     if (code == 3) {
       if (!isquoted(token_array)) {
         token_array++;
@@ -176,6 +177,7 @@ int parse_json(char *string_json, json_msg *json) {
         memcpy(ope, token_array, strlen(token_array));
         ope[strlen(token_array)] = '\0';
         array = malloc(sizeof(double) * MAX_INPUT);
+        // Fonction de validation
         test = isnumber;
         pad = 0;
       }
@@ -187,17 +189,19 @@ int parse_json(char *string_json, json_msg *json) {
         return EXIT_FAILURE;
       }
     }
+    // On passe à l'element suivant de l'array
     token_array = strtok_r(NULL, ",", &saveptr_array);
     printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
   }
   if (pad) {
-    // TODO faire pour que test = str_code_test(isValid)
+    // Fonction de validation
     test = str_code_test(code);
     strings = malloc(sizeof(char *) * MAX_INPUT);
   }
   // parse array
   while (token_array != NULL) {
     printf("token [%d] : %s\n", i, token_array);
+    // Validation en fonction du code
     if (test(token_array)) {
       perror("erreur format data 1");
       free(tstr);
@@ -216,6 +220,8 @@ int parse_json(char *string_json, json_msg *json) {
     token_array = strtok_r(NULL, ",", &saveptr_array);
     ++i;
   }
+  // Comparaison de la taille donnée dans le msg avec la taille réelle de
+  // l'array
   if (tmp_size != 0 && i != tmp_size) {
     perror("erreur taille array");
     free(tstr);
@@ -235,6 +241,7 @@ int parse_json(char *string_json, json_msg *json) {
   return 0;
 }
 
+// Enlève les zeros en trop
 void remove_zeros(char *str_double) {
   size_t i = strlen(str_double) - 1;
   while (str_double[i] == '0' && i > 1 && str_double[i - 1] != '.') {
@@ -268,9 +275,8 @@ void append_calcule_array(char *string, json_msg *json) {
   strcat(string, tmp2str);
 }
 
-// Met en forme
-// TODO si envoie ou si rep
-int to_json(char *string, json_msg *json) {
+// Met en forme au format json
+int json_to_string(char *string, json_msg *json) {
   sprintf(string, "{\n\t\"code\" : \"%s\",\n\t\"valeurs\" : [", json->code);
   printf("%s\n", string);
   if (strcmp(json->code, "calcule") == 0) {

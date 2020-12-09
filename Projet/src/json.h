@@ -13,7 +13,6 @@ typedef struct {
   char *operateur;
 } calcule;
 
-// TODO DYN
 typedef struct {
   char code[10];
   unsigned int size;
@@ -34,13 +33,14 @@ int isoperateur(char *operateur);
 int isnumber(char *number);
 int iscode(char *code);
 
-// Met en forme DYN
-int to_json(char *string, json_msg *json);
+// Transforme la struct en un string au format json
+int json_to_string(char *string, json_msg *json);
 
-// Lit la chaine json et rempli/crée (cf dynamic) la struc json_msg DYN
+// Lit la chaine json, valide le format et rempli la struct json_msg
 int parse_json(char *string_json, json_msg *json);
 
 void delete (void *ptr, char *name);
+// Fonction delete de la struct
 void delete_json(json_msg *json);
 
 #endif

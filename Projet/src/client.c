@@ -92,7 +92,7 @@ int envoie_recois_message(int socketfd, char *pathname) {
   // utilise la structure pour convertir
   // les info en JSON et envoyer au serveur
 
-  to_json(json_string, json);
+  json_to_string(json_string, json);
 
   json_string[strlen(json_string)] = '\0';
 

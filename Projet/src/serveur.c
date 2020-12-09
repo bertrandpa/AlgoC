@@ -99,7 +99,7 @@ int recois_envoie_message(int client_socket_fd) {
     close(client_socket_fd);
     return EXIT_FAILURE;
   }
-  to_json(reponse, json_reponse);
+  json_to_string(reponse, json_reponse);
   // fix me, pb allocation ?
   delete_json(json_data);
   delete_json(json_reponse);
@@ -387,20 +387,20 @@ int main() {
       return (EXIT_FAILURE);
     }
     printf("[+]Client %d est connecté\n", client_socket_fd);
-    pid_t pid;
+    /* pid_t pid;
     if ((pid = fork()) < 0) {
       perror("fork");
       return (EXIT_FAILURE);
     } else if (pid == 0) {
       // child
       // TODO threads
-      recois_envoie_message(client_socket_fd);
+      // recois_envoie_message(client_socket_fd);
       return 0;
     } else {
       // parent
       continue;
-    }
-    // recois_envoie_message(client_socket_fd);
+    } */
+    recois_envoie_message(client_socket_fd);
     // Lire et répondre au client
   }
 
