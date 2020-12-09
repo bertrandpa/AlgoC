@@ -32,7 +32,8 @@ int isbalises(char *balise);
 int isoperateur(char *operateur);
 int isnumber(char *number);
 int iscode(char *code);
-
+// Utile pour validation de la struct calcul
+int validate_calcul(calcule *calc, unsigned int *arr_size);
 // Transforme la struct en un string au format json
 int json_to_string(char *string, json_msg *json);
 

@@ -86,6 +86,36 @@ int (*str_code_test(int code))(char *) {
   return NULL;
 }
 
+int validate_calcul(calcule *calc, unsigned int *arr_size) {
+
+  int code_op = isoperateur(calc->operateur);
+  if (!code_op) {
+    perror("erreur format operateur");
+    return EXIT_FAILURE;
+  }
+  if (*arr_size <= 0 || (code_op < 5 && *arr_size > 2) ||
+      *arr_size > MAX_INPUT) {
+    perror("erreur taille array");
+    return EXIT_FAILURE;
+  }
+  // Si un seul carac
+  if (code_op < 5 && (*arr_size) == 1) {
+    (*arr_size) += 1;
+    calc->num_array = realloc(calc->num_array, sizeof(double) * (*arr_size));
+    calc->num_array[1] = calc->num_array[0];
+    // si +,- on ajoute un 0 et si *, / on ajoute un 1
+    // le tout à partir du code (fait pour avoir - 1 => -1 et non 1
+    // et / 3 => 1/3 et non 3)
+    calc->num_array[0] = (code_op + 1) >> 2;
+    if (code_op == 4 && calc->num_array[1] == 0.0) {
+      perror("erreur division par zero");
+      return EXIT_FAILURE;
+    }
+  }
+
+  return 0;
+}
+
 char *trim(char *src) {
   printf(src);
   char *res, *token, *saveptr, tmpres[3072];
@@ -164,15 +194,13 @@ int parse_json(char *string_json, json_msg *json) {
   if (code > 2) {
     // verification du format du premier element
     if (code == 3) {
-      if (!isquoted(token_array)) {
-        token_array++;
-        token_array[strlen(token_array) - 1] = '\0';
-      }
-      if (!isoperateur(token_array)) {
+      if (isquoted(token_array)) {
         perror("erreur format operateur");
         free(tstr);
         return EXIT_FAILURE;
       } else {
+        token_array++;
+        token_array[strlen(token_array) - 1] = '\0';
         ope = malloc(sizeof(char) * (strlen(token_array) + 1));
         memcpy(ope, token_array, strlen(token_array));
         ope[strlen(token_array)] = '\0';
@@ -233,6 +261,12 @@ int parse_json(char *string_json, json_msg *json) {
     json->valeurs.double_values = malloc(sizeof(calcule));
     json->valeurs.double_values->num_array = array;
     json->valeurs.double_values->operateur = ope;
+    int valid_status =
+        validate_calcul(json->valeurs.double_values, &json->size);
+    if (valid_status) {
+      free(tstr);
+      return EXIT_FAILURE;
+    }
   } else {
     strings = realloc(strings, i * sizeof(char *));
     json->valeurs.str_array = strings;

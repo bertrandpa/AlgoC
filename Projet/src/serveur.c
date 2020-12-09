@@ -33,11 +33,8 @@ int recois_envoie_message(int client_socket_fd) {
   memset(reponse, 0, sizeof(reponse));
   json_data = (json_msg *)malloc(sizeof(json_msg));
   json_reponse = (json_msg *)malloc(sizeof(json_msg));
-  // TODO fix
   memset((void *)json_data, 0, sizeof(*json_data));
   memset((void *)json_reponse, 0, sizeof(*json_reponse));
-  /*   memset(&json_data, 0, sizeof(json_data));
-    memset(&json_reponse, 0, sizeof(json_reponse)); */
 
   // lecture de données envoyées par un client
   int data_size = read(client_socket_fd, (void *)data, sizeof(data));
@@ -64,7 +61,6 @@ int recois_envoie_message(int client_socket_fd) {
     return EXIT_FAILURE;
   }
   strcpy(json_reponse->code, json_data->code);
-  // fix
   printf("code = %s\n", json_data->code);
 
   /*
@@ -77,10 +73,9 @@ int recois_envoie_message(int client_socket_fd) {
   int exit_status;
   // Si le message commence par le mot: 'message:'
   if (strcmp(json_data->code, "message") == 0) {
-    // Init array
     exit_status = renvoie_message(json_data, json_reponse);
   } else if (strcmp(json_data->code, "nom") == 0) {
-    renvoie_nom(json_data, json_reponse);
+    exit_status = renvoie_nom(json_data, json_reponse);
 
   } else if (strcmp(json_data->code, "calcule") == 0) {
     exit_status = recois_numeros_calcule(json_data, json_reponse);
@@ -92,7 +87,6 @@ int recois_envoie_message(int client_socket_fd) {
     exit_status = recois_balises(json_data, json_reponse);
   }
 
-  // strcpy(json_reponse.valeurs[1], "END\0");
   if (exit_status) {
     delete_json(json_data);
     delete_json(json_reponse);
@@ -100,10 +94,8 @@ int recois_envoie_message(int client_socket_fd) {
     return EXIT_FAILURE;
   }
   json_to_string(reponse, json_reponse);
-  // fix me, pb allocation ?
   delete_json(json_data);
   delete_json(json_reponse);
-  // reponse[strlen(reponse) - 1] = '\0';
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
     close(client_socket_fd);
@@ -225,8 +217,9 @@ double avg(double *operands, unsigned int size) {
 }
 double absl(double d) { return (d < 0) ? -d : d; }
 // Calcule de la racine avec la méthode de Newton
+//
 double sqrt(double x) {
-  double prec = 0.00001;
+  double prec = __DBL_MIN__;
   double acc = 1.0;
   while (absl(acc * acc - x) >= prec) {
     acc = (x / acc + acc) / 2.0;
@@ -247,7 +240,7 @@ double avg_diff_sqrt(double *operands, unsigned int size) {
   double var = calcul(add, diffs, size);
   printf("var = %lf\n", var);
   // ecart-type
-  return sqrt(var);
+  return var > 0 ? sqrt(var) : 0;
 }
 
 int recois_numeros_calcule(json_msg *data, json_msg *reponse) {

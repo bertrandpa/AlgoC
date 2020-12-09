@@ -68,6 +68,7 @@ int envoie_recois_message(int socketfd, char *pathname) {
   case 3:
     memcpy(json->code, "calcule", 9);
     if (envoie_operateur_numeros(json)) {
+      delete_json(json);
       return (EXIT_FAILURE);
     }
     break;
