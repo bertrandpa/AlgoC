@@ -230,7 +230,7 @@ int parse_json(char *string_json, json_msg *json) {
   }
   // parse array
   while (token_array != NULL) {
-    printf("token [%d] : %s\n", i, token_array);
+    // printf("token [%d] : %s\n", i, token_array);
     // Validation en fonction du code
     if (test(token_array)) {
       perror("erreur format data 1");
@@ -242,8 +242,9 @@ int parse_json(char *string_json, json_msg *json) {
       printf("array [%d] : %lf\n", i, array[i]);
 
     } else {
-      strings[i] = malloc(sizeof(char *) * strlen(token_array) - 1);
+      strings[i] = malloc(sizeof(char *) * (strlen(token_array) - 1));
       memcpy(strings[i], token_array + 1, strlen(token_array) - 1);
+      strings[i][strlen(token_array) - 1] = '\0';
       printf("string [%d] : %s\n", i, strings[i]);
     }
 

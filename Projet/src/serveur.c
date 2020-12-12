@@ -7,13 +7,13 @@
 
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -25,22 +25,12 @@
 
 volatile __sig_atomic_t is_running;
 
-// Variable global de synchronisation multithreads
-pthread_t thread_poule[MAX_THREADS];
-// Clear mutex memory
-pthread_mutex_t thr_mutex = PTHREAD_MUTEX_INITIALIZER;
-sem_t sem;
-
 /* accepter la nouvelle connection d'un client et lire les données
  * envoyées par le client. En suite, le serveur envoie un message
  * en retour
  */
-void *recois_envoie_message(void *socket_fd) {
+int recois_envoie_message(int client_socket_fd) {
 
-  int client_socket_fd = *(int *)socket_fd;
-  int err_v = EXIT_FAILURE, succ_v = EXIT_SUCCESS;
-  int *err = &err_v;
-  int *succ = &succ_v;
   char data[1024], reponse[1024], savedata[1024];
   json_msg *json_data, *json_reponse;
   // la réinitialisation de l'ensemble des données
@@ -55,21 +45,11 @@ void *recois_envoie_message(void *socket_fd) {
   int data_size = read(client_socket_fd, (void *)data, sizeof(data));
 
   if (data_size < 0) {
-    close(client_socket_fd);
-    printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture");
-    if (sem_post(&sem)) {
-      perror("erreur incrementation semaphore");
-    }
-    pthread_exit(err);
+    return EXIT_FAILURE;
   } else if (data_size == 0) {
-    close(client_socket_fd);
-    printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture vide");
-    if (sem_post(&sem)) {
-      perror("erreur incrementation semaphore");
-    }
-    pthread_exit(err);
+    return EXIT_FAILURE;
   }
 
   printf("Message recu: \n%s\n", data);
@@ -77,13 +57,9 @@ void *recois_envoie_message(void *socket_fd) {
 
   // On parse le message client
   if (parse_json(savedata, json_data)) {
-    close(client_socket_fd);
     delete_json(json_data);
     delete_json(json_reponse);
-    if (sem_post(&sem)) {
-      perror("erreur incrementation semaphore");
-    }
-    pthread_exit(err);
+    return EXIT_FAILURE;
   }
   strcpy(json_reponse->code, json_data->code);
   printf("code = %s\n", json_data->code);
@@ -94,7 +70,6 @@ void *recois_envoie_message(void *socket_fd) {
    * :" ou un autre mot.
    *
    */
-  json_reponse->valeurs.str_array = malloc(sizeof(char *));
   int exit_status;
   // Si le message commence par le mot: 'message:'
   if (strcmp(json_data->code, "message") == 0) {
@@ -115,12 +90,7 @@ void *recois_envoie_message(void *socket_fd) {
   if (exit_status) {
     delete_json(json_data);
     delete_json(json_reponse);
-    close(client_socket_fd);
-    if (sem_post(&sem)) {
-      perror("erreur incrementation semaphore");
-      pthread_exit(err);
-    }
-    pthread_exit(err);
+    return EXIT_FAILURE;
   }
 
   json_to_string(reponse, json_reponse);
@@ -130,25 +100,12 @@ void *recois_envoie_message(void *socket_fd) {
 
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
-    close(client_socket_fd);
-    printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("Erreur write");
-    if (sem_post(&sem)) {
-      perror("erreur incrementation semaphore");
-      pthread_exit(err);
-    }
-    pthread_exit(err);
+    return EXIT_FAILURE;
   }
   printf("[sent] to %d : %s\n", client_socket_fd, reponse);
-  // fermer le socket
-  close(client_socket_fd);
-  printf("[-]Client %d déconnecté\n", client_socket_fd);
-  // sem_post retourne 0 si succès autre sinon
-  if (sem_post(&sem)) {
-    perror("erreur incrementation semaphore");
-    pthread_exit(err);
-  }
-  pthread_exit(succ);
+
+  return EXIT_SUCCESS;
 }
 
 int save(char *path, json_msg *data) {
@@ -371,12 +328,6 @@ int main() {
 
   struct sockaddr_in server_addr, client_addr;
 
-  // sem_init et pthread_mutex_init retourne 0 si succès autre sinon
-  if (sem_init(&sem, 1, 2) || pthread_mutex_init(&thr_mutex, NULL)) {
-    perror("initialisation semaphore ou mutex");
-    return EXIT_FAILURE;
-  }
-
   // Register SIGINT et le trap avec la fonction associée
   struct sigaction action;
   sigemptyset(&action.sa_mask);
@@ -416,6 +367,12 @@ int main() {
     return (EXIT_FAILURE);
   }
 
+  struct timeval tv; // timeout pour select
+  tv.tv_sec = 5;
+  tv.tv_usec = 0;
+  fd_set active_fd_set, read_fd_set;
+  FD_ZERO(&active_fd_set); // set fd_set to zeros
+
   is_running = 1;
   while (is_running == 1) {
     printf("En attente de client\n");
@@ -425,25 +382,29 @@ int main() {
       perror("accept");
       return (EXIT_FAILURE);
     }
-    printf("[+]Client %d en attente\n", client_socket_fd);
-    // Attend que le compteur s'incrémente, puis le décrémente
-    // sem_wait retourne 0 si succès autre sinon
-    if (sem_wait(&sem)) {
-      perror("attente semaphore");
+    printf("[+]Client %d est connecté\n", client_socket_fd);
+
+    FD_SET(client_socket_fd, &active_fd_set); // on ajoute le new fd au set
+    read_fd_set = active_fd_set;
+    struct timeval timeout = tv;
+    int read_size = select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL);
+    printf("read_size : %d\n", read_size);
+    if (read_size < 0) {
+      perror("erreur select");
       return EXIT_FAILURE;
     }
-    printf("[+]Client %d est connecté\n", client_socket_fd);
-    // crée un thread avec id pour maintenir un suivit des threads
-    // et les join à la fin
-    pthread_t tid;
-    memset(&tid, 0, sizeof(pthread_t));
-    pthread_create(&(tid), NULL, recois_envoie_message, &client_socket_fd);
-    pthread_detach(tid);
-
-    // recois_envoie_message(client_socket_fd);
-    // Lire et répondre au client
+    // On itère sur les fd avec inputs
+    for (int i = 0; i < FD_SETSIZE; i++) {
+      if (FD_ISSET(i, &read_fd_set)) {
+        printf("fd : %d a des choses a nous dire\n", i);
+        // Lire et répondre au client
+        recois_envoie_message(i);
+        // fermer le socket
+        close(i);
+        printf("[-]Client %d déconnecté\n", i);
+      }
+    }
   }
-
   close(socketfd);
 
   return 0;
