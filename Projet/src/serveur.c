@@ -7,6 +7,8 @@
 
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,13 +21,26 @@
 
 #include "serveur.h"
 
+#define MAX_THREADS 10
+
 volatile __sig_atomic_t is_running;
+
+// Variable global de synchronisation multithreads
+pthread_t thread_poule[MAX_THREADS];
+// Clear mutex memory
+pthread_mutex_t thr_mutex = PTHREAD_MUTEX_INITIALIZER;
+sem_t sem;
 
 /* accepter la nouvelle connection d'un client et lire les données
  * envoyées par le client. En suite, le serveur envoie un message
  * en retour
  */
-int recois_envoie_message(int client_socket_fd) {
+void *recois_envoie_message(void *socket_fd) {
+
+  int client_socket_fd = *(int *)socket_fd;
+  int err_v = EXIT_FAILURE, succ_v = EXIT_SUCCESS;
+  int *err = &err_v;
+  int *succ = &succ_v;
   char data[1024], reponse[1024], savedata[1024];
   json_msg *json_data, *json_reponse;
   // la réinitialisation de l'ensemble des données
@@ -43,22 +58,32 @@ int recois_envoie_message(int client_socket_fd) {
     close(client_socket_fd);
     printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture");
-    return (EXIT_FAILURE);
+    if (sem_post(&sem)) {
+      perror("erreur incrementation semaphore");
+    }
+    pthread_exit(err);
   } else if (data_size == 0) {
     close(client_socket_fd);
     printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("erreur lecture vide");
-    return (EXIT_FAILURE);
+    if (sem_post(&sem)) {
+      perror("erreur incrementation semaphore");
+    }
+    pthread_exit(err);
   }
 
   printf("Message recu: \n%s\n", data);
-  // TODO parse msg
   strncpy(savedata, data, sizeof(data));
+
+  // On parse le message client
   if (parse_json(savedata, json_data)) {
     close(client_socket_fd);
     delete_json(json_data);
     delete_json(json_reponse);
-    return EXIT_FAILURE;
+    if (sem_post(&sem)) {
+      perror("erreur incrementation semaphore");
+    }
+    pthread_exit(err);
   }
   strcpy(json_reponse->code, json_data->code);
   printf("code = %s\n", json_data->code);
@@ -91,23 +116,39 @@ int recois_envoie_message(int client_socket_fd) {
     delete_json(json_data);
     delete_json(json_reponse);
     close(client_socket_fd);
-    return EXIT_FAILURE;
+    if (sem_post(&sem)) {
+      perror("erreur incrementation semaphore");
+      pthread_exit(err);
+    }
+    pthread_exit(err);
   }
+
   json_to_string(reponse, json_reponse);
+
   delete_json(json_data);
   delete_json(json_reponse);
+
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
     close(client_socket_fd);
     printf("[-]Client %d déconnecté\n", client_socket_fd);
     perror("Erreur write");
-    return (EXIT_FAILURE);
+    if (sem_post(&sem)) {
+      perror("erreur incrementation semaphore");
+      pthread_exit(err);
+    }
+    pthread_exit(err);
   }
   printf("[sent] to %d : %s\n", client_socket_fd, reponse);
   // fermer le socket
   close(client_socket_fd);
   printf("[-]Client %d déconnecté\n", client_socket_fd);
-  return 0;
+  // sem_post retourne 0 si succès autre sinon
+  if (sem_post(&sem)) {
+    perror("erreur incrementation semaphore");
+    pthread_exit(err);
+  }
+  pthread_exit(succ);
 }
 
 int save(char *path, json_msg *data) {
@@ -217,7 +258,6 @@ double avg(double *operands, unsigned int size) {
 }
 double absl(double d) { return (d < 0) ? -d : d; }
 // Calcule de la racine avec la méthode de Newton
-//
 double sqrt(double x) {
   double prec = __DBL_MIN__;
   double acc = 1.0;
@@ -326,12 +366,18 @@ void sighandler(int sigint) {
 
 int main() {
 
-  int socketfd;
-  int bind_status;
+  int socketfd, bind_status;
   socklen_t client_addr_len;
 
   struct sockaddr_in server_addr, client_addr;
 
+  // sem_init et pthread_mutex_init retourne 0 si succès autre sinon
+  if (sem_init(&sem, 1, 2) || pthread_mutex_init(&thr_mutex, NULL)) {
+    perror("initialisation semaphore ou mutex");
+    return EXIT_FAILURE;
+  }
+
+  // Register SIGINT et le trap avec la fonction associée
   struct sigaction action;
   sigemptyset(&action.sa_mask);
   action.sa_handler = sighandler;
@@ -369,7 +415,7 @@ int main() {
     perror("listen");
     return (EXIT_FAILURE);
   }
-  // TODO fixme
+
   is_running = 1;
   while (is_running == 1) {
     printf("En attente de client\n");
@@ -379,21 +425,22 @@ int main() {
       perror("accept");
       return (EXIT_FAILURE);
     }
+    printf("[+]Client %d en attente\n", client_socket_fd);
+    // Attend que le compteur s'incrémente, puis le décrémente
+    // sem_wait retourne 0 si succès autre sinon
+    if (sem_wait(&sem)) {
+      perror("attente semaphore");
+      return EXIT_FAILURE;
+    }
     printf("[+]Client %d est connecté\n", client_socket_fd);
-    /* pid_t pid;
-    if ((pid = fork()) < 0) {
-      perror("fork");
-      return (EXIT_FAILURE);
-    } else if (pid == 0) {
-      // child
-      // TODO threads
-      // recois_envoie_message(client_socket_fd);
-      return 0;
-    } else {
-      // parent
-      continue;
-    } */
-    recois_envoie_message(client_socket_fd);
+    // crée un thread avec id pour maintenir un suivit des threads
+    // et les join à la fin
+    pthread_t tid;
+    memset(&tid, 0, sizeof(pthread_t));
+    pthread_create(&(tid), NULL, recois_envoie_message, &client_socket_fd);
+    pthread_detach(tid);
+
+    // recois_envoie_message(client_socket_fd);
     // Lire et répondre au client
   }
 

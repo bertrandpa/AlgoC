@@ -23,6 +23,6 @@ int recois_balises(json_msg *data, json_msg *reponse);
  * envoyées par le client. En suite, le serveur envoie un message
  * en retour
  */
-int recois_envoie_message(int socketfd);
+void *recois_envoie_message(void *socketfd);
 
 #endif

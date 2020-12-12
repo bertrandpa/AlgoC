@@ -133,6 +133,8 @@ char *trim(char *src) {
   return res;
 }
 
+// Fonction pour parser un string en un json_msg
+// La validation s'effectue ici afin de ne pas tokenizer 2 fois la même chose
 int parse_json(char *string_json, json_msg *json) {
 
   char *saveptr = NULL, *saveptr_array = NULL;
@@ -309,7 +311,6 @@ void append_calcule_array(char *string, json_msg *json) {
   strcat(string, tmp2str);
 }
 
-// Met en forme au format json
 int json_to_string(char *string, json_msg *json) {
   sprintf(string, "{\n\t\"code\" : \"%s\",\n\t\"valeurs\" : [", json->code);
   printf("%s\n", string);
