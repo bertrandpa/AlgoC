@@ -240,8 +240,9 @@ int parse_json(char *string_json, json_msg *json) {
       printf("array [%d] : %lf\n", i, array[i]);
 
     } else {
-      strings[i] = malloc(sizeof(char *) * strlen(token_array) - 1);
+      strings[i] = malloc(sizeof(char *) * (strlen(token_array) - 1));
       memcpy(strings[i], token_array + 1, strlen(token_array) - 1);
+      strings[i][strlen(token_array) - 1] = '\0';
       printf("string [%d] : %s\n", i, strings[i]);
     }
 
@@ -318,8 +319,9 @@ int json_to_string(char *string, json_msg *json) {
   } else {
     char tmpstr[2048];
     char **arr = json->valeurs.str_array;
-    if (json->size > 0 && (strcmp(json->code, "couleurs") == 0 ||
-                           strcmp(json->code, "balises") == 0)) {
+    if (json->size > 0 && strcmp(*arr, "enregistré") &&
+        (strcmp(json->code, "couleurs") == 0 ||
+         strcmp(json->code, "balises") == 0)) {
       memset(tmpstr, 0, sizeof(tmpstr));
       sprintf(tmpstr, " %d,", json->size);
       strcat(string, tmpstr);
