@@ -104,8 +104,8 @@ int validate_calcul(calcule *calc, unsigned int *arr_size) {
     calc->num_array = realloc(calc->num_array, sizeof(double) * (*arr_size));
     calc->num_array[1] = calc->num_array[0];
     // si +,- on ajoute un 0 et si *, / on ajoute un 1
-    // le tout à partir du code (fait pour avoir - 1 => -1 et non 1
-    // et / 3 => 1/3 et non 3)
+    // le tout à partir du code (fait pour que si on envoie "-" 1 on retourne -1
+    // et non 1 et "/" 3 => 1/3 et non 3)
     calc->num_array[0] = (code_op + 1) >> 2;
     if (code_op == 4 && calc->num_array[1] == 0.0) {
       perror("erreur division par zero");

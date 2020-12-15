@@ -1,7 +1,8 @@
 # Difficulté
-* Les caractères de fin de chaines et utilisation de strtok_r
-* Identifier les parties réutilisables du code spécifique à la tâche 1.
+* Le passage de fonction par paramètre pour le calcule
 
 # Commentaires
-* La structure json qui contient les données est remplie au fur et à mesure et mise en forme avant envoie dans le socket.
-* On a pas utilisé d'allocation dynamique, et de fait les fonctions prennent en paramètre un string vide que se fait muter par celles-ci.
+* Pour le calcule, choix de faire au style fonctionnel pour mieux factoriser
+* La lib math.h n'a pas été utilisée
+* Le format double ajoute des zéros et pollue l'échange json, on a donc ajouter une fonction qui "trim" les zéros avant envoie
+* Des fuites mémoires ont été trouvées sur le code de base (+ de 1Mo pour l'envoie des couleures depuis une image bmp) et fixé (avec Valgrind)
