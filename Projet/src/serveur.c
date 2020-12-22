@@ -21,8 +21,6 @@
 
 #include "serveur.h"
 
-#define MAX_THREADS 10
-
 volatile __sig_atomic_t is_running;
 
 /* accepter la nouvelle connection d'un client et lire les données
@@ -36,8 +34,8 @@ int recois_envoie_message(int client_socket_fd) {
   // la réinitialisation de l'ensemble des données
   memset(data, 0, sizeof(data));
   memset(reponse, 0, sizeof(reponse));
-  json_data = (json_msg *)malloc(sizeof(json_msg));
-  json_reponse = (json_msg *)malloc(sizeof(json_msg));
+  json_data = malloc(sizeof(json_msg));
+  json_reponse = malloc(sizeof(json_msg));
   memset((void *)json_data, 0, sizeof(*json_data));
   memset((void *)json_reponse, 0, sizeof(*json_reponse));
 
@@ -55,7 +53,7 @@ int recois_envoie_message(int client_socket_fd) {
   printf("Message recu: \n%s\n", data);
   strncpy(savedata, data, sizeof(data));
 
-  // On parse le message client
+  // On parse le message client et on remplit la structure
   if (parse_json(savedata, json_data)) {
     delete_json(json_data);
     delete_json(json_reponse);
@@ -74,6 +72,7 @@ int recois_envoie_message(int client_socket_fd) {
   // Si le message commence par le mot: 'message:'
   if (strcmp(json_data->code, "message") == 0) {
     exit_status = renvoie_message(json_data, json_reponse);
+
   } else if (strcmp(json_data->code, "nom") == 0) {
     exit_status = renvoie_nom(json_data, json_reponse);
 
@@ -93,17 +92,20 @@ int recois_envoie_message(int client_socket_fd) {
     return EXIT_FAILURE;
   }
 
+  // met la reponse en string au format json
   json_to_string(reponse, json_reponse);
 
   delete_json(json_data);
   delete_json(json_reponse);
 
+  // renvoie la reponse au client
   int nbwrite = write(client_socket_fd, reponse, strlen(reponse));
   if (nbwrite <= 0) {
     perror("Erreur write");
     return EXIT_FAILURE;
   }
-  printf("[sent] to %d : %s\n", client_socket_fd, reponse);
+  // Accusé d'envoie
+  // printf("[sent] to %d : %s\n", client_socket_fd, reponse);
 
   return EXIT_SUCCESS;
 }
@@ -118,7 +120,6 @@ int save(char *path, json_msg *data) {
   time_t t = time(NULL);
   char *asct = asctime(localtime(&t));
   fprintf(fp, "#save at %s\n", asct);
-  // TODO voir si formattage nécessaire avant save
   fprintf(fp, "%s : ", data->code);
   uint i;
   for (i = 0; i < data->size - 1; i++) {
@@ -142,12 +143,8 @@ void plot(char **data, int nbcouleurs) {
   fprintf(p, "set style fill transparent solid 0.9 noborder\n");
   fprintf(p, "set title 'Top %d colors'\n", nbcouleurs);
   fprintf(p, "plot '-' with circles lc rgbcolor variable\n");
-  // test limit
   while (count < nbcouleurs) {
     char *couleur = data[count];
-    // TODO voir gnuplot avec données en sin + cos pour le floating point
-    // TODO en vu du JSON, faire parssage avant et itérer sur un char**
-    // Le numéro 36, parceque 360° (cercle) / 10 couleurs = 36
     fprintf(p, "0 0 10 %d %d 0x%s\n", (count - 1) * slice, count * slice,
             couleur + 1);
     count++;
@@ -157,7 +154,7 @@ void plot(char **data, int nbcouleurs) {
   pclose(p);
 }
 
-/* renvoyer un message (*data) au client (client_socket_fd)
+/* renvoie un message entré par le serveur
  */
 int renvoie_message(json_msg *data, json_msg *reponse) {
   char message[1000];
@@ -174,10 +171,9 @@ int renvoie_message(json_msg *data, json_msg *reponse) {
   memcpy(reponse->valeurs.str_array[0], message, strlen(message) + 1);
   return 0;
 }
-
+// Recopie le nom recu dans la réponse
 int renvoie_nom(json_msg *data, json_msg *reponse) {
   reponse->size = data->size;
-  // On renvoie le nom
   reponse->valeurs.str_array = data->valeurs.str_array;
   data->valeurs.str_array = NULL;
   return 0;
@@ -225,6 +221,7 @@ double sqrt(double x) {
   return acc;
 }
 
+// Calcule l'écart-type des données
 double avg_diff_sqrt(double *operands, unsigned int size) {
   double xavg = avg(operands, size);
   double diffs[size];
@@ -241,6 +238,7 @@ double avg_diff_sqrt(double *operands, unsigned int size) {
   return var > 0 ? sqrt(var) : 0;
 }
 
+// Calcule et copie le résultat dans la réponse
 int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
   for (size_t i = 0; i < data->size; i++) {
     printf("%lf  |  ", data->valeurs.double_values->num_array[i]);
@@ -264,7 +262,6 @@ int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
   }
   res = i < 6 ? calcul(basic_fct[i], nums, data->size)
               : fct[i - 6](nums, data->size);
-  // set error if failed ? or implicitly checked before, correct format
   printf("res : %lf\n", res);
   reponse->size = 1;
   reponse->valeurs.double_values = malloc(sizeof(calcule));
@@ -275,6 +272,7 @@ int recois_numeros_calcule(json_msg *data, json_msg *reponse) {
   return 0;
 }
 
+// Plot les couleurs et les save dans un fichiers
 int recois_couleurs(json_msg *data, json_msg *reponse) {
   char *rep_str;
   if (data->size > 0) {
@@ -296,6 +294,7 @@ int recois_couleurs(json_msg *data, json_msg *reponse) {
   return 0;
 }
 
+// Save les balises
 int recois_balises(json_msg *data, json_msg *reponse) {
   char *rep_str;
   if (data->size > 0) {

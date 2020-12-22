@@ -44,7 +44,7 @@ int ismessage(char *message) {
   message++;
   message[strlen(message) - 1] = '\0';
   for (size_t i = 1; i < strlen(message) - 1; i++) {
-    if (!isalnum(message[i]))
+    if (!isalnum(message[i]) && message[i] != ' ')
       return 1;
   }
   return 0;
@@ -153,14 +153,14 @@ int parse_json(char *string_json, json_msg *json) {
     perror("erreur format json 0");
     return EXIT_FAILURE;
   }
-  printf("trimmed : %s\n", tstr);
+  // printf("trimmed : %s\n", tstr);
   // isolé "code":"code_value"
   char *token = strtok_r(tstr, ",", &saveptr);
-  printf("token : %s\nsaveptr : %s\n", token, saveptr);
+  // printf("token : %s\nsaveptr : %s\n", token, saveptr);
 
   // isolate and compare header
   char *subtoken = strtok_r(NULL, ":", &token);
-  printf("subtoken : %s\ntoken : %s\n", subtoken, token);
+  // printf("subtoken : %s\ntoken : %s\n", subtoken, token);
   if (strcmp(subtoken, "{\"code\"") != 0) {
     perror("erreur format json 1");
     free(tstr);
@@ -175,10 +175,10 @@ int parse_json(char *string_json, json_msg *json) {
   }
   strncpy(json->code, token + 1, strlen(token) - 2);
   json->code[strlen(token) - 1] = '\0';
-  printf("code : %s\n", json->code);
+  // printf("code : %s\n", json->code);
 
   token = strtok_r(NULL, ":", &saveptr);
-  printf("token : %s\nsaveptr : %s\n", token, saveptr);
+  // printf("token : %s\nsaveptr : %s\n", token, saveptr);
   if (strcmp(token, "\"valeurs\"") != 0) {
     perror("erreur format json 2");
     free(tstr);
@@ -194,11 +194,11 @@ int parse_json(char *string_json, json_msg *json) {
   char *valeurs = saveptr + 1;
 
   valeurs[strlen(valeurs) - 2] = '\0';
-  printf("valeurs : %s\n", valeurs);
+  // printf("valeurs : %s\n", valeurs);
 
   int i = 0;
   char *token_array = strtok_r(valeurs, ",", &saveptr_array);
-  printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
+  // printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
 
   // prepare array parse
   int pad = 1, tmp_size = 0;
@@ -234,7 +234,7 @@ int parse_json(char *string_json, json_msg *json) {
     }
     // On passe à l'element suivant de l'array
     token_array = strtok_r(NULL, ",", &saveptr_array);
-    printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
+    // printf("token_array : %s\nsaveptr : %s\n", token_array, saveptr_array);
   }
   if (pad) {
     // Fonction de validation
@@ -252,13 +252,13 @@ int parse_json(char *string_json, json_msg *json) {
     }
     if (code == 3) {
       array[i] = atof(token_array);
-      printf("array [%d] : %lf\n", i, array[i]);
+      // printf("array [%d] : %lf\n", i, array[i]);
 
     } else {
       strings[i] = malloc(sizeof(char *) * (strlen(token_array) - 1));
       memcpy(strings[i], token_array + 1, strlen(token_array) - 1);
       strings[i][strlen(token_array) - 1] = '\0';
-      printf("string [%d] : %s\n", i, strings[i]);
+      // printf("string [%d] : %s\n", i, strings[i]);
     }
 
     token_array = strtok_r(NULL, ",", &saveptr_array);
