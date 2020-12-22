@@ -118,15 +118,24 @@ int validate_calcul(calcule *calc, unsigned int *arr_size) {
 
 char *trim(char *src) {
   printf(src);
-  char *res, *token, *saveptr, tmpres[3072];
+  char tmpres[2048], *res;
   memset(tmpres, 0, sizeof(tmpres));
-  char *delim = " \t\n";
-  token = strtok_r(src, delim, &saveptr);
-  while (token != NULL) {
-
-    strncat(tmpres, token, strlen(token));
-    token = strtok_r(NULL, delim, &saveptr);
-  }
+  char *ptr = src;
+  int j = 0, inword = 0;
+  while (ptr != NULL && *ptr) {
+    char *tmp = ptr;
+    // permet de savoir si on est entre guillement
+    // dans ce cas on ne saute pas les espaces
+    inword = (inword + (*ptr == '\"')) % 2;
+    do {
+      tmp++;
+    } while (*tmp && !inword && (*tmp == ' ' || *tmp == '\t' || *tmp == '\n'));
+    tmpres[j] = *ptr;
+    ptr += (tmp - ptr); // jump spaces
+    j++;
+  };
+  if (inword)
+    return NULL;
   tmpres[strlen(tmpres)] = '\0';
   res = malloc(sizeof(char) * strlen(tmpres) + 1);
   memcpy(res, tmpres, strlen(tmpres) + 1);
@@ -140,6 +149,10 @@ int parse_json(char *string_json, json_msg *json) {
   char *saveptr = NULL, *saveptr_array = NULL;
   // get trimmed json
   char *tstr = trim(string_json);
+  if (!tstr) {
+    perror("erreur format json 0");
+    return EXIT_FAILURE;
+  }
   printf("trimmed : %s\n", tstr);
   // isolé "code":"code_value"
   char *token = strtok_r(tstr, ",", &saveptr);
@@ -320,8 +333,9 @@ int json_to_string(char *string, json_msg *json) {
   } else {
     char tmpstr[2048];
     char **arr = json->valeurs.str_array;
-    if (json->size > 0 && (strcmp(json->code, "couleurs") == 0 ||
-                           strcmp(json->code, "balises") == 0)) {
+    if (json->size > 0 && strcmp(*arr, "enregistré") &&
+        (strcmp(json->code, "couleurs") == 0 ||
+         strcmp(json->code, "balises") == 0)) {
       memset(tmpstr, 0, sizeof(tmpstr));
       sprintf(tmpstr, " %d,", json->size);
       strcat(string, tmpstr);

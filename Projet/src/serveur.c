@@ -169,6 +169,7 @@ int renvoie_message(json_msg *data, json_msg *reponse) {
   }
   message[strlen(message) - 1] = '\0';
   reponse->size = data->size;
+  reponse->valeurs.str_array = malloc(sizeof(char *));
   reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(message) + 1));
   memcpy(reponse->valeurs.str_array[0], message, strlen(message) + 1);
   return 0;
@@ -288,6 +289,7 @@ int recois_couleurs(json_msg *data, json_msg *reponse) {
     rep_str = "erreur nombre couleurs\0";
   }
   reponse->size = 1;
+  reponse->valeurs.str_array = malloc(sizeof(char *));
   reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(rep_str) + 1));
   memcpy(reponse->valeurs.str_array[0], rep_str, strlen(rep_str) + 1);
 
@@ -308,6 +310,7 @@ int recois_balises(json_msg *data, json_msg *reponse) {
     rep_str = "erreur nombre balises\0";
   }
   reponse->size = 1;
+  reponse->valeurs.str_array = malloc(sizeof(char *));
   reponse->valeurs.str_array[0] = malloc(sizeof(char) * (strlen(rep_str) + 1));
   memcpy(reponse->valeurs.str_array[0], rep_str, strlen(rep_str) + 1);
 
