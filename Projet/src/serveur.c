@@ -370,26 +370,16 @@ int main() {
     return (EXIT_FAILURE);
   }
 
-  struct timeval tv; // timeout pour select
-  tv.tv_sec = 5;
-  tv.tv_usec = 0;
   fd_set active_fd_set, read_fd_set;
   FD_ZERO(&active_fd_set); // set fd_set to zeros
-
+  // on ajoute le socket du serveur pour le connexion entrante
+  FD_SET(socketfd, &active_fd_set);
   is_running = 1;
   while (is_running == 1) {
     printf("En attente de client\n");
-    int client_socket_fd =
-        accept(socketfd, (struct sockaddr *)&client_addr, &client_addr_len);
-    if (client_socket_fd < 0) {
-      perror("accept");
-      return (EXIT_FAILURE);
-    }
-    printf("[+]Client %d est connecté\n", client_socket_fd);
 
-    FD_SET(client_socket_fd, &active_fd_set); // on ajoute le new fd au set
+    // copie du set général car select est destructeur
     read_fd_set = active_fd_set;
-    struct timeval timeout = tv;
     int read_size = select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL);
     printf("read_size : %d\n", read_size);
     if (read_size < 0) {
@@ -399,12 +389,27 @@ int main() {
     // On itère sur les fd avec inputs
     for (int i = 0; i < FD_SETSIZE; i++) {
       if (FD_ISSET(i, &read_fd_set)) {
-        printf("fd : %d a des choses a nous dire\n", i);
-        // Lire et répondre au client
-        recois_envoie_message(i);
-        // fermer le socket
-        close(i);
-        printf("[-]Client %d déconnecté\n", i);
+        // nouvelle connexion au serveur
+        if (i == socketfd) {
+          int client_socket_fd = accept(
+              socketfd, (struct sockaddr *)&client_addr, &client_addr_len);
+          if (client_socket_fd < 0) {
+            perror("accept");
+            return (EXIT_FAILURE);
+          }
+          printf("[+]Client %d est connecté\n", client_socket_fd);
+          // on ajoute le new fd au set
+          FD_SET(client_socket_fd, &active_fd_set);
+        } else {
+          printf("fd : %d a des choses a nous dire\n", i);
+          // Lire et répondre au client
+          recois_envoie_message(i);
+          // fermer le socket
+          close(i);
+          // On enlève ce client du prochain set copié
+          FD_CLR(i, &active_fd_set);
+          printf("[-]Client %d déconnecté\n", i);
+        }
       }
     }
   }
