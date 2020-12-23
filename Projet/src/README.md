@@ -1,7 +1,10 @@
 # Difficulté
-* Les caractères de fin de chaines et utilisation de strtok_r
-* Identifier les parties réutilisables du code spécifique à la tâche 1.
-
+* Les tests n'ont pas été finis (intégration dure à mettre en place)
+* Plusieurs idées testées pour le multi-client : fork puis thread et enfin select qui fonctionne
+* Le fait d'avoir voulue rendre le client plus lourd (menu, saisie à la volé des valeurs...) rend plus difficile les tests.
 # Commentaires
-* La structure json qui contient les données est remplie au fur et à mesure et mise en forme avant envoie dans le socket.
-* On a pas utilisé d'allocation dynamique, et de fait les fonctions prennent en paramètre un string vide que se fait muter par celles-ci.
+* Format accepté des msg : 
+- message/nom : alphanum avec espace
+- calcule : 1 ou 2 opérandes pour + - * /
+- couleurs : pour utiliser le path il faut faire ./client pathToImage et sélectionner l'option couleur dans le menu. Pour le format entré à la main : 6 char en hexa
+- balise : alphabétique seuelement
